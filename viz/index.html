@@ -1,0 +1,2110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MicroGPT Visual Explorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text-primary: #c9d1d9;
+      --text-secondary: #8b949e;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-orange: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #bc8cff;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, monospace;
+    }
+
+    html { font-size: 15px; }
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 40px 0 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+    .header .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+    .header .param-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 12px;
+      border-radius: 12px;
+      background: rgba(88,166,255,0.12);
+      color: var(--accent-blue);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-top: 12px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      flex: 1;
+      min-width: 140px;
+      padding: 12px 16px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+      white-space: nowrap;
+      text-align: center;
+    }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--text-primary); font-weight: 600; }
+    .tab-btn::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      border-radius: 2px;
+      background: transparent;
+      transition: background 0.3s;
+    }
+    .tab-btn[data-tab="tokenizer"].active::after { background: var(--accent-blue); }
+    .tab-btn[data-tab="training"].active::after { background: var(--accent-green); }
+    .tab-btn[data-tab="inference"].active::after { background: var(--accent-orange); }
+    .tab-btn[data-tab="backprop"].active::after { background: var(--accent-red); }
+
+    .tab-content { display: none; padding: 28px 0 48px; animation: fadeIn 0.35s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Grid helpers */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* Stat card */
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      text-align: center;
+    }
+    .stat-card .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .stat-card .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Token chips */
+    .token-chip {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(88,166,255,0.1);
+      border: 1px solid rgba(88,166,255,0.25);
+      font-family: var(--font-mono);
+      min-width: 44px;
+      animation: chipIn 0.25s ease forwards;
+      opacity: 0;
+    }
+    .token-chip.bos {
+      background: rgba(188,140,255,0.15);
+      border-color: rgba(188,140,255,0.35);
+    }
+    .token-chip .char { font-size: 1.1rem; font-weight: 600; }
+    .token-chip .id { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+    @keyframes chipIn { from { opacity: 0; transform: scale(0.8) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+    .token-arrow {
+      display: inline-flex;
+      align-items: center;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin: 0 4px;
+      opacity: 0;
+      animation: chipIn 0.2s ease forwards;
+    }
+
+    .token-display {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      min-height: 60px;
+      padding: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    /* Vocab grid */
+    .vocab-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+      gap: 6px;
+    }
+    .vocab-item {
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      cursor: default;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .vocab-item:hover { background: rgba(88,166,255,0.08); border-color: var(--accent-blue); }
+    .vocab-item.bos { background: rgba(188,140,255,0.1); border-color: rgba(188,140,255,0.3); }
+    .vocab-item .v-char { font-size: 1rem; font-weight: 600; }
+    .vocab-item .v-id { font-size: 0.65rem; color: var(--text-secondary); }
+
+    /* Inputs and buttons */
+    input[type="text"], input[type="number"] {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent-blue); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--text-secondary); }
+    .btn-green { border-color: var(--accent-green); color: var(--accent-green); }
+    .btn-green:hover { background: rgba(63,185,80,0.12); }
+    .btn-blue { border-color: var(--accent-blue); color: var(--accent-blue); }
+    .btn-blue:hover { background: rgba(88,166,255,0.12); }
+    .btn-orange { border-color: var(--accent-orange); color: var(--accent-orange); }
+    .btn-orange:hover { background: rgba(210,153,34,0.12); }
+    .btn-red { border-color: var(--accent-red); color: var(--accent-red); }
+    .btn-red:hover { background: rgba(248,81,73,0.12); }
+
+    .btn.active-toggle { background: rgba(88,166,255,0.15); border-color: var(--accent-blue); color: var(--accent-blue); }
+
+    /* Range slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      cursor: pointer;
+      border: 2px solid var(--bg);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      cursor: pointer;
+      border: 2px solid var(--bg);
+    }
+
+    /* Canvas wrapper */
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.2);
+    }
+    .canvas-wrap canvas { display: block; width: 100%; }
+
+    /* Controls bar */
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .controls-bar label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .controls-bar .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .controls-bar .val-display {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent-blue);
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* Generated text display */
+    .gen-text-display {
+      font-family: var(--font-mono);
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 2px;
+      padding: 20px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .gen-char {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      animation: charFade 0.3s ease forwards;
+      opacity: 0;
+    }
+    .gen-char .gc-letter { font-size: 2.4rem; }
+    .gen-char .gc-id { font-size: 0.6rem; color: var(--text-secondary); font-weight: 400; }
+    @keyframes charFade { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Prob bars */
+    .prob-bar-container { max-height: 460px; overflow-y: auto; padding-right: 6px; }
+    .prob-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+    }
+    .prob-bar-label { width: 40px; text-align: right; color: var(--text-secondary); flex-shrink: 0; }
+    .prob-bar-track {
+      flex: 1;
+      height: 20px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .prob-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      min-width: 1px;
+    }
+    .prob-bar-pct { width: 52px; text-align: right; color: var(--text-secondary); flex-shrink: 0; font-size: 0.75rem; }
+    .prob-bar-row.sampled .prob-bar-label { color: var(--accent-orange); font-weight: 600; }
+    .prob-bar-row.sampled .prob-bar-pct { color: var(--accent-orange); font-weight: 600; }
+
+    /* Architecture flow */
+    .arch-flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      padding: 16px 0;
+    }
+    .arch-block {
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+      text-align: center;
+      transition: all 0.3s;
+      min-width: 200px;
+      position: relative;
+    }
+    .arch-block .dim-tag {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      margin-left: 6px;
+    }
+    .arch-block.active {
+      border-color: var(--accent-orange);
+      background: rgba(210,153,34,0.1);
+      box-shadow: 0 0 12px rgba(210,153,34,0.15);
+    }
+    .arch-arrow {
+      width: 1px;
+      height: 16px;
+      background: var(--border);
+      position: relative;
+    }
+    .arch-arrow::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: -3px;
+      width: 7px;
+      height: 7px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      transform: rotate(45deg);
+    }
+
+    /* Attention heatmap */
+    .attn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 768px) { .attn-grid { grid-template-columns: 1fr; } }
+    .attn-head-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      margin-bottom: 4px;
+    }
+
+    /* Training detail */
+    .snapshot-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+    .snapshot-info .si-label { color: var(--text-secondary); }
+    .snapshot-info .si-value { color: var(--accent-blue); font-weight: 600; }
+
+    /* Backprop */
+    .bp-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .bp-controls label { font-size: 0.85rem; color: var(--text-secondary); }
+    .bp-controls input[type="number"] { width: 70px; text-align: center; padding: 6px 8px; }
+    .chain-rule-panel {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 2;
+      padding: 16px 20px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+    }
+    .chain-rule-panel .eq { margin-bottom: 4px; }
+    .chain-rule-panel .highlight { color: var(--accent-orange); font-weight: 600; }
+    .chain-rule-panel .grad-val { color: var(--accent-red); font-weight: 600; }
+
+    /* Tooltip */
+    .chart-tooltip {
+      position: absolute;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-primary);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 10;
+      white-space: nowrap;
+    }
+    .chart-tooltip.visible { opacity: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+    /* Error */
+    .error-banner {
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid var(--accent-red);
+      background: rgba(248,81,73,0.08);
+      text-align: center;
+      margin: 40px 0;
+    }
+    .error-banner h2 { color: var(--accent-red); margin-bottom: 10px; }
+    .error-banner code {
+      display: block;
+      margin-top: 10px;
+      padding: 12px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      text-align: left;
+      color: var(--text-secondary);
+    }
+
+    /* Misc */
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 10px 0;
+    }
+    .slider-row label { font-size: 0.8rem; color: var(--text-secondary); min-width: 50px; }
+    .slider-row .val-display { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-blue); min-width: 60px; text-align: right; }
+
+    /* Doc link panels — viz↔docs integration */
+    .doc-links {
+      margin-top: 20px;
+      padding: 16px 20px;
+      background: rgba(88, 166, 255, 0.06);
+      border: 1px solid rgba(88, 166, 255, 0.15);
+      border-radius: 10px;
+    }
+    .doc-links-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+      margin-bottom: 10px;
+      letter-spacing: 0.03em;
+    }
+    .doc-links a {
+      display: inline-block;
+      padding: 5px 12px;
+      margin: 3px 6px 3px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 0.78rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .doc-links a:hover {
+      border-color: var(--accent-blue);
+      background: rgba(88, 166, 255, 0.1);
+    }
+    .doc-links a .link-arrow { color: var(--accent-blue); margin-left: 4px; }
+
+    /* Dataset explanation card */
+    .dataset-explain { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+    .dataset-explain-col h4 { font-size: 0.82rem; color: var(--accent-green); margin-bottom: 8px; }
+    .dataset-explain-col p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 6px; }
+    .dataset-explain-col code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent-orange); }
+    .dataset-example { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-top: 8px; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.8; }
+    .dataset-example .label { color: var(--text-secondary); min-width: 60px; display: inline-block; }
+    .dataset-example .val { color: var(--accent-blue); }
+    .dataset-example .val-green { color: var(--accent-green); }
+    .dataset-example .val-orange { color: var(--accent-orange); }
+    @media (max-width: 700px) { .dataset-explain { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>MicroGPT Visual Explorer</h1>
+      <div class="subtitle">4,192 파라미터로 이해하는 GPT의 모든 것</div>
+      <div class="param-badge">4,192 params &middot; 1 layer &middot; 4 heads &middot; dim 16</div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="tokenizer">1. 데이터 &amp; 토크나이저</button>
+      <button class="tab-btn" data-tab="training">2. 학습 Training</button>
+      <button class="tab-btn" data-tab="inference">3. 추론 Inference</button>
+      <button class="tab-btn" data-tab="backprop">4. 역전파 Backprop</button>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Tab 1: Tokenizer -->
+    <!-- ================================================================ -->
+    <div id="tab-tokenizer" class="tab-content active">
+
+      <div class="grid-3" id="dataset-stats"></div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>데이터셋 이해하기</div>
+        <div class="dataset-explain">
+          <div class="dataset-explain-col">
+            <h4>데이터셋은 무엇인가?</h4>
+            <p><code>input.txt</code>에는 <strong>32,033개의 영어 이름</strong>이 한 줄에 하나씩 들어 있습니다 (예: emma, olivia, ava, ...). Karpathy의 <a href="https://github.com/karpathy/makemore" style="color:var(--accent-blue)">makemore</a> 프로젝트에서 가져온 데이터입니다.</p>
+            <p>모델의 목표는 이 이름들의 <strong>문자 패턴</strong>을 학습하여, 학습 데이터에 없는 새로운 이름을 생성하는 것입니다.</p>
+          </div>
+          <div class="dataset-explain-col">
+            <h4>입력과 정답 (Ground Truth)</h4>
+            <p>문자 단위 <strong>다음 토큰 예측</strong> 과제입니다. 이름 <code>emma</code>의 경우:</p>
+            <div class="dataset-example">
+              <div><span class="label">입력:</span> <span class="val">BOS</span> → 정답: <span class="val-green">e</span></div>
+              <div><span class="label">입력:</span> <span class="val">BOS e</span> → 정답: <span class="val-green">m</span></div>
+              <div><span class="label">입력:</span> <span class="val">BOS e m</span> → 정답: <span class="val-green">m</span></div>
+              <div><span class="label">입력:</span> <span class="val">BOS e m m</span> → 정답: <span class="val-green">a</span></div>
+              <div><span class="label">입력:</span> <span class="val">BOS e m m a</span> → 정답: <span class="val-green">BOS</span> (종료)</div>
+            </div>
+          </div>
+        </div>
+        <div class="dataset-explain" style="margin-top:12px;">
+          <div class="dataset-explain-col">
+            <h4>추론 결과는 어떻게 다른가?</h4>
+            <p>학습 후 모델은 <strong>실제 존재하지 않는 이름</strong>을 생성합니다. 학습 데이터를 외우는 것이 아니라 문자 조합의 패턴을 학습한 것입니다.</p>
+            <div class="dataset-example">
+              <div><span class="label">학습 데이터:</span> <span class="val-green">emma, olivia, sophia, ...</span></div>
+              <div><span class="label">추론 결과:</span> <span class="val-orange">kaspen, maede, shan, ...</span></div>
+            </div>
+          </div>
+          <div class="dataset-explain-col">
+            <h4>왜 이런 결과가 나오나?</h4>
+            <p>4,192개의 파라미터는 32,033개 이름을 전부 외울 수 없습니다. 대신 <strong>"영어 이름다운 패턴"</strong>을 학습합니다:</p>
+            <p>• 자음-모음 교대 (<code>ka-spe-n</code>)<br>• 흔한 접미사 (<code>-en</code>, <code>-a</code>, <code>-an</code>)<br>• 적절한 길이 (3~7자)</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="card-title"><span class="dot" style="background:var(--accent-blue)"></span>인터랙티브 토크나이저</div>
+        <input type="text" id="tokenizer-input" placeholder="이름을 입력하세요 (예: emma)" maxlength="16" autocomplete="off" spellcheck="false">
+        <div class="token-display" id="tokenizer-output"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-purple)"></span>어휘 사전 (Vocabulary)</div>
+        <div class="vocab-grid" id="vocab-grid"></div>
+      </div>
+
+      <div class="doc-links">
+        <div class="doc-links-title">자세히 알아보기</div>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part1-python/ch01-data-tokenizer.md" target="_blank">Ch01: 데이터와 토크나이저<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch13-data-loading.md" target="_blank">Ch13: 데이터 로딩<span class="link-arrow">&rarr;</span></a>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Tab 2: Training -->
+    <!-- ================================================================ -->
+    <div id="tab-training" class="tab-content">
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>손실 곡선 (Loss Curve)</div>
+        <div class="canvas-wrap" style="height:280px;">
+          <canvas id="loss-canvas"></canvas>
+          <div class="chart-tooltip" id="loss-tooltip"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-blue)"></span>학습률 곡선 (Learning Rate)</div>
+        <div class="canvas-wrap" style="height:140px;">
+          <canvas id="lr-canvas"></canvas>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <label>Step:</label>
+        <input type="range" id="step-slider" min="0" max="999" value="999" style="flex:1">
+        <div class="val-display" id="step-val">999</div>
+      </div>
+
+      <div class="card" id="training-detail-card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-orange)"></span>학습 스냅샷</div>
+        <div class="snapshot-info" id="snapshot-info">
+          <span class="si-label">슬라이더를 스냅샷 위치로 이동하세요</span>
+        </div>
+        <div class="token-display" id="snapshot-tokens" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card" id="training-attn-card" style="display:none;">
+        <div class="card-title"><span class="dot" style="background:var(--accent-orange)"></span>어텐션 히트맵 (스냅샷)</div>
+        <div class="attn-grid" id="training-attn-grid"></div>
+      </div>
+
+      <div class="doc-links">
+        <div class="doc-links-title">자세히 알아보기</div>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part1-python/ch03-why-learning-works.md" target="_blank">Ch03: 왜 학습이 되는가<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part1-python/ch05-transformer-and-training.md" target="_blank">Ch05: Transformer와 학습<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch16-training-loop.md" target="_blank">Ch16: 학습 루프<span class="link-arrow">&rarr;</span></a>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Tab 3: Inference -->
+    <!-- ================================================================ -->
+    <div id="tab-inference" class="tab-content">
+
+      <div class="controls-bar">
+        <button class="btn btn-green" id="btn-generate">Generate</button>
+        <button class="btn btn-blue" id="btn-step">Step</button>
+        <button class="btn" id="btn-auto">Auto</button>
+
+        <div class="ctrl-group">
+          <label>Temperature</label>
+          <input type="range" id="temp-slider" min="0.1" max="2.0" step="0.05" value="0.5" style="width:100px">
+          <span class="val-display" id="temp-val">0.50</span>
+        </div>
+
+        <div class="ctrl-group">
+          <label>Seed</label>
+          <input type="number" id="seed-input" value="42" style="width:70px; padding:6px 8px;">
+        </div>
+
+        <div class="ctrl-group">
+          <label>Speed</label>
+          <input type="range" id="speed-slider" min="100" max="2000" step="50" value="500" style="width:80px">
+          <span class="val-display" id="speed-val">500ms</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>생성된 이름</div>
+        <div class="gen-text-display" id="gen-text-display">
+          <span style="color:var(--text-secondary); font-size:1rem; font-weight:400;">Generate를 클릭하여 이름을 생성하세요</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="dot" style="background:var(--accent-blue)"></span>아키텍처 흐름</div>
+            <div class="arch-flow" id="arch-flow"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="dot" style="background:var(--accent-orange)"></span>어텐션 히트맵 (실시간)</div>
+            <div class="attn-grid" id="inference-attn-grid"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="dot" style="background:var(--accent-purple)"></span>
+            다음 토큰 확률
+            <button class="btn" id="btn-sort-toggle" style="margin-left:auto; font-size:0.75rem; padding:4px 10px;">정렬: 확률순</button>
+          </div>
+          <div class="prob-bar-container" id="prob-bars"></div>
+        </div>
+      </div>
+
+      <div class="doc-links">
+        <div class="doc-links-title">자세히 알아보기</div>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch12-nn-building-blocks.md" target="_blank">Ch12: 신경망 빌딩 블록<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch15-gpt-forward.md" target="_blank">Ch15: GPT 순전파<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch17-inference.md" target="_blank">Ch17: 추론<span class="link-arrow">&rarr;</span></a>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Tab 4: Backprop -->
+    <!-- ================================================================ -->
+    <div id="tab-backprop" class="tab-content">
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-red)"></span>인터랙티브 계산 그래프: f = (a * b) + c</div>
+
+        <div class="bp-controls">
+          <label>a = <input type="number" id="bp-a" value="2" step="0.5"></label>
+          <label>b = <input type="number" id="bp-b" value="3" step="0.5"></label>
+          <label>c = <input type="number" id="bp-c" value="4" step="0.5"></label>
+          <button class="btn btn-green" id="bp-forward">순전파 (Forward)</button>
+          <button class="btn btn-red" id="bp-backward">역전파 (Backward)</button>
+          <button class="btn" id="bp-reset">초기화 (Reset)</button>
+        </div>
+
+        <div class="canvas-wrap" style="height:380px;">
+          <canvas id="bp-canvas"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-orange)"></span>체인룰 설명 (Chain Rule)</div>
+        <div class="chain-rule-panel" id="chain-rule-panel">
+          <div class="eq">f = (a * b) + c</div>
+          <div class="eq" style="margin-top:8px;">순전파 (Forward)와 역전파 (Backward) 버튼을 클릭하여 계산 과정을 확인하세요.</div>
+        </div>
+      </div>
+
+      <div class="doc-links">
+        <div class="doc-links-title">자세히 알아보기</div>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part1-python/ch04-value-and-backprop.md" target="_blank">Ch04: Value와 역전파<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch10-differentiable-ops.md" target="_blank">Ch10: 미분 가능한 연산<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch11-backward.md" target="_blank">Ch11: 역전파 구현<span class="link-arrow">&rarr;</span></a>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-container" class="container" style="display:none;">
+    <div class="error-banner">
+      <h2>데이터를 불러올 수 없습니다</h2>
+      <p>data.js 파일이 필요합니다. 먼저 학습을 실행하여 데이터를 생성해주세요.</p>
+      <code>
+# 학습 실행 (C++)<br>
+cd microgpt-cpp && mkdir build && cd build<br>
+cmake .. && make<br>
+./microgpt<br><br>
+# 또는 Python으로 실행<br>
+python microgpt.py<br><br>
+# data.js가 viz/ 디렉토리에 생성됩니다
+      </code>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script>
+  /* ==========================================================================
+     Main Application
+     ========================================================================== */
+  (function() {
+    'use strict';
+
+    // ------------------------------------------------------------------
+    // Data check
+    // ------------------------------------------------------------------
+    if (typeof MODEL_DATA === 'undefined') {
+      document.querySelector('.container').style.display = 'none';
+      document.getElementById('error-container').style.display = 'block';
+      return;
+    }
+
+    const D = MODEL_DATA;
+    const CFG = D.config;
+    const W = D.weights;
+    const V = D.vocab;
+    const T = D.training;
+    const BOS = CFG.vocab_size - 1; // 26
+
+    // Build char_to_id map
+    const charToId = {};
+    V.forEach(function(ch, i) { charToId[ch] = i; });
+
+    // ------------------------------------------------------------------
+    // Tab system
+    // ------------------------------------------------------------------
+    var currentTab = 'tokenizer';
+    var tabButtons = document.querySelectorAll('.tab-btn');
+
+    function switchTab(tab) {
+      if (tab === currentTab) return;
+      tabButtons.forEach(function(b) { b.classList.remove('active'); });
+      document.querySelector('.tab-btn[data-tab="' + tab + '"]').classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+      document.getElementById('tab-' + tab).classList.add('active');
+      currentTab = tab;
+      if (tab === 'training') { drawLossChart(); drawLRChart(); }
+      if (tab === 'backprop') { drawBPGraph(); }
+    }
+
+    tabButtons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tab = btn.getAttribute('data-tab');
+        switchTab(tab);
+        history.replaceState(null, '', '#' + tab);
+      });
+    });
+
+    // Hash routing: #tokenizer, #training, #inference, #backprop
+    var validTabs = ['tokenizer', 'training', 'inference', 'backprop'];
+    var hash = location.hash.replace('#', '');
+    if (validTabs.indexOf(hash) !== -1 && hash !== 'tokenizer') {
+      switchTab(hash);
+    }
+    window.addEventListener('hashchange', function() {
+      var h = location.hash.replace('#', '');
+      if (validTabs.indexOf(h) !== -1) switchTab(h);
+    });
+
+    // ------------------------------------------------------------------
+    // Utility: HiDPI canvas setup
+    // ------------------------------------------------------------------
+    function setupCanvas(canvas, w, h) {
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      return ctx;
+    }
+
+    function getCanvasSize(canvas) {
+      var rect = canvas.parentElement.getBoundingClientRect();
+      return { w: Math.floor(rect.width), h: Math.floor(rect.height) };
+    }
+
+    // ------------------------------------------------------------------
+    // Tab 1: Tokenizer
+    // ------------------------------------------------------------------
+    (function initTokenizer() {
+      // Dataset stats
+      var statsEl = document.getElementById('dataset-stats');
+      var stats = [
+        { value: '32,033', label: '이름 (Names)', color: 'var(--accent-blue)' },
+        { value: CFG.vocab_size.toString(), label: '토큰 (a-z + BOS)', color: 'var(--accent-green)' },
+        { value: 'Char-level', label: '문자 단위 토크나이징', color: 'var(--accent-purple)' }
+      ];
+      statsEl.innerHTML = stats.map(function(s) {
+        return '<div class="stat-card"><div class="stat-value" style="color:' + s.color + '">' + s.value + '</div><div class="stat-label">' + s.label + '</div></div>';
+      }).join('');
+
+      // Vocab grid
+      var gridEl = document.getElementById('vocab-grid');
+      gridEl.innerHTML = V.map(function(ch, i) {
+        var isBos = (i === BOS);
+        var display = isBos ? 'BOS' : ch;
+        return '<div class="vocab-item' + (isBos ? ' bos' : '') + '"><div class="v-char">' + display + '</div><div class="v-id">' + i + '</div></div>';
+      }).join('');
+
+      // Interactive tokenizer
+      var input = document.getElementById('tokenizer-input');
+      var output = document.getElementById('tokenizer-output');
+
+      function tokenize(text) {
+        var tokens = [BOS];
+        for (var i = 0; i < text.length; i++) {
+          var ch = text[i].toLowerCase();
+          if (charToId.hasOwnProperty(ch)) {
+            tokens.push(charToId[ch]);
+          }
+        }
+        tokens.push(BOS);
+        return tokens;
+      }
+
+      function renderTokens(tokens) {
+        output.innerHTML = '';
+        tokens.forEach(function(tid, idx) {
+          var chip = document.createElement('div');
+          chip.className = 'token-chip' + (tid === BOS ? ' bos' : '');
+          chip.style.animationDelay = (idx * 0.06) + 's';
+          var display = tid === BOS ? 'BOS' : V[tid];
+          chip.innerHTML = '<span class="char">' + display + '</span><span class="id">' + tid + '</span>';
+          output.appendChild(chip);
+
+          if (idx < tokens.length - 1) {
+            var arrow = document.createElement('span');
+            arrow.className = 'token-arrow';
+            arrow.style.animationDelay = (idx * 0.06 + 0.03) + 's';
+            arrow.textContent = '\u2192';
+            output.appendChild(arrow);
+          }
+        });
+      }
+
+      input.addEventListener('input', function() {
+        var text = input.value.replace(/[^a-zA-Z]/g, '');
+        if (text.length === 0) {
+          output.innerHTML = '';
+          return;
+        }
+        var tokens = tokenize(text);
+        renderTokens(tokens);
+      });
+
+      // Show default example
+      input.value = 'emma';
+      input.dispatchEvent(new Event('input'));
+    })();
+
+    // ------------------------------------------------------------------
+    // Tab 2: Training
+    // ------------------------------------------------------------------
+    var lossCanvas = document.getElementById('loss-canvas');
+    var lossTooltip = document.getElementById('loss-tooltip');
+    var lrCanvas = document.getElementById('lr-canvas');
+    var stepSlider = document.getElementById('step-slider');
+    var stepVal = document.getElementById('step-val');
+
+    function drawLossChart() {
+      if (!T || !T.loss_history) return;
+      var size = getCanvasSize(lossCanvas);
+      var ctx = setupCanvas(lossCanvas, size.w, size.h);
+      var w = size.w, h = size.h;
+      var pad = { top: 20, right: 20, bottom: 36, left: 55 };
+      var pw = w - pad.left - pad.right;
+      var ph = h - pad.top - pad.bottom;
+
+      var losses = T.loss_history;
+      var n = losses.length;
+      var maxLoss = Math.max.apply(null, losses);
+      var minLoss = Math.min.apply(null, losses);
+      var range = maxLoss - minLoss || 1;
+      maxLoss = maxLoss + range * 0.05;
+      minLoss = Math.max(0, minLoss - range * 0.05);
+      range = maxLoss - minLoss;
+
+      function xPos(i) { return pad.left + (i / (n - 1)) * pw; }
+      function yPos(v) { return pad.top + (1 - (v - minLoss) / range) * ph; }
+
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.clearRect(0, 0, w, h);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(48,54,61,0.5)';
+      ctx.lineWidth = 0.5;
+      for (var i = 0; i <= 5; i++) {
+        var gv = minLoss + (range * i / 5);
+        var gy = yPos(gv);
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(w - pad.right, gy); ctx.stroke();
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+        ctx.textAlign = 'right';
+        ctx.fillText(gv.toFixed(2), pad.left - 8, gy + 4);
+      }
+
+      // X-axis labels
+      ctx.textAlign = 'center';
+      for (var i = 0; i <= 5; i++) {
+        var step = Math.round((n - 1) * i / 5);
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText(step.toString(), xPos(step), h - pad.bottom + 20);
+      }
+
+      // Gradient fill under curve
+      var gradient = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+      gradient.addColorStop(0, 'rgba(63,185,80,0.25)');
+      gradient.addColorStop(1, 'rgba(63,185,80,0.01)');
+
+      ctx.beginPath();
+      ctx.moveTo(xPos(0), yPos(losses[0]));
+      for (var i = 1; i < n; i++) {
+        ctx.lineTo(xPos(i), yPos(losses[i]));
+      }
+      ctx.lineTo(xPos(n - 1), h - pad.bottom);
+      ctx.lineTo(xPos(0), h - pad.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      ctx.moveTo(xPos(0), yPos(losses[0]));
+      for (var i = 1; i < n; i++) {
+        ctx.lineTo(xPos(i), yPos(losses[i]));
+      }
+      ctx.strokeStyle = '#3fb950';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // Current step marker
+      var cs = parseInt(stepSlider.value);
+      if (cs >= 0 && cs < n) {
+        ctx.beginPath();
+        ctx.arc(xPos(cs), yPos(losses[cs]), 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#3fb950';
+        ctx.fill();
+        ctx.strokeStyle = '#0d1117';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Hover handling
+      lossCanvas._meta = { pad: pad, pw: pw, ph: ph, n: n, losses: losses, minLoss: minLoss, range: range, xPos: xPos, yPos: yPos };
+    }
+
+    lossCanvas.addEventListener('mousemove', function(e) {
+      var meta = lossCanvas._meta;
+      if (!meta) return;
+      var rect = lossCanvas.getBoundingClientRect();
+      var mx = e.clientX - rect.left;
+      var my = e.clientY - rect.top;
+      var step = Math.round(((mx - meta.pad.left) / meta.pw) * (meta.n - 1));
+      step = Math.max(0, Math.min(meta.n - 1, step));
+      lossTooltip.textContent = 'Step ' + step + ' | Loss ' + meta.losses[step].toFixed(4);
+      lossTooltip.style.left = (mx + 12) + 'px';
+      lossTooltip.style.top = (my - 8) + 'px';
+      lossTooltip.classList.add('visible');
+    });
+
+    lossCanvas.addEventListener('mouseleave', function() {
+      lossTooltip.classList.remove('visible');
+    });
+
+    function drawLRChart() {
+      var size = getCanvasSize(lrCanvas);
+      var ctx = setupCanvas(lrCanvas, size.w, size.h);
+      var w = size.w, h = size.h;
+      var pad = { top: 12, right: 20, bottom: 28, left: 55 };
+      var pw = w - pad.left - pad.right;
+      var ph = h - pad.top - pad.bottom;
+      var n = 1000;
+      var lr0 = 0.01;
+
+      function xPos(i) { return pad.left + (i / (n - 1)) * pw; }
+      function yPos(v) { return pad.top + (1 - v / lr0) * ph; }
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(48,54,61,0.5)';
+      ctx.lineWidth = 0.5;
+      for (var i = 0; i <= 2; i++) {
+        var gv = lr0 * i / 2;
+        var gy = yPos(gv);
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(w - pad.right, gy); ctx.stroke();
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(gv.toFixed(3), pad.left - 8, gy + 4);
+      }
+
+      // Gradient fill
+      var gradient = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+      gradient.addColorStop(0, 'rgba(88,166,255,0.2)');
+      gradient.addColorStop(1, 'rgba(88,166,255,0.01)');
+
+      ctx.beginPath();
+      ctx.moveTo(xPos(0), yPos(lr0));
+      for (var i = 1; i < n; i++) {
+        var lr = lr0 * (1 - i / n);
+        ctx.lineTo(xPos(i), yPos(lr));
+      }
+      ctx.lineTo(xPos(n - 1), h - pad.bottom);
+      ctx.lineTo(xPos(0), h - pad.bottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      ctx.moveTo(xPos(0), yPos(lr0));
+      for (var i = 1; i < n; i++) {
+        var lr = lr0 * (1 - i / n);
+        ctx.lineTo(xPos(i), yPos(lr));
+      }
+      ctx.strokeStyle = '#58a6ff';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // Marker
+      var cs = parseInt(stepSlider.value);
+      var lrCurrent = lr0 * (1 - cs / n);
+      ctx.beginPath();
+      ctx.arc(xPos(cs), yPos(lrCurrent), 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#58a6ff';
+      ctx.fill();
+      ctx.strokeStyle = '#0d1117';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function findNearestSnapshot(step) {
+      if (!T || !T.snapshots || T.snapshots.length === 0) return null;
+      var best = null;
+      var bestDist = Infinity;
+      for (var i = 0; i < T.snapshots.length; i++) {
+        var d = Math.abs(T.snapshots[i].step - step);
+        if (d < bestDist) { bestDist = d; best = T.snapshots[i]; }
+      }
+      return bestDist <= 25 ? best : null;
+    }
+
+    function renderSnapshotTokens(tokens, container) {
+      container.innerHTML = '';
+      if (!tokens) return;
+      tokens.forEach(function(tid, idx) {
+        var chip = document.createElement('div');
+        chip.className = 'token-chip' + (tid === BOS ? ' bos' : '');
+        chip.style.animationDelay = '0s';
+        chip.style.opacity = '1';
+        var display = tid === BOS ? 'BOS' : V[tid];
+        chip.innerHTML = '<span class="char">' + display + '</span><span class="id">' + tid + '</span>';
+        container.appendChild(chip);
+        if (idx < tokens.length - 1) {
+          var arrow = document.createElement('span');
+          arrow.className = 'token-arrow';
+          arrow.style.opacity = '1';
+          arrow.textContent = '\u2192';
+          container.appendChild(arrow);
+        }
+      });
+    }
+
+    function drawAttnHeatmap(canvas, attnWeights, tokens, headIdx) {
+      // attnWeights[queryPos] = array of length (queryPos+1) with attention values
+      if (!attnWeights || attnWeights.length === 0) return;
+      var T_len = attnWeights.length;
+      var cellSize = Math.min(32, Math.floor(280 / T_len));
+      var labelW = 36;
+      var labelH = 20;
+      var cw = labelW + T_len * cellSize + 4;
+      var ch = labelH + T_len * cellSize + 4;
+
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = cw * dpr;
+      canvas.height = ch * dpr;
+      canvas.style.width = cw + 'px';
+      canvas.style.height = ch + 'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cw, ch);
+
+      // Axis labels
+      ctx.font = '9px monospace';
+      ctx.fillStyle = '#8b949e';
+      for (var i = 0; i < T_len; i++) {
+        var display = tokens && tokens[i] !== undefined ? (tokens[i] === BOS ? 'B' : V[tokens[i]]) : i.toString();
+        // Column label (key)
+        ctx.textAlign = 'center';
+        ctx.fillText(display, labelW + i * cellSize + cellSize / 2, labelH - 4);
+        // Row label (query)
+        ctx.textAlign = 'right';
+        ctx.fillText(display, labelW - 4, labelH + i * cellSize + cellSize / 2 + 3);
+      }
+
+      // Cells
+      for (var q = 0; q < T_len; q++) {
+        var row = attnWeights[q];
+        if (!row) continue;
+        for (var k = 0; k < row.length; k++) {
+          var val = row[k];
+          // Interpolate color from #0d1117 to #f0883e
+          var r = Math.round(13 + val * (240 - 13));
+          var g = Math.round(17 + val * (136 - 17));
+          var b = Math.round(23 + val * (62 - 23));
+          ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+          ctx.fillRect(labelW + k * cellSize, labelH + q * cellSize, cellSize - 1, cellSize - 1);
+        }
+      }
+    }
+
+    function updateTrainingSnapshot(step) {
+      var snap = findNearestSnapshot(step);
+      var infoEl = document.getElementById('snapshot-info');
+      var tokensEl = document.getElementById('snapshot-tokens');
+      var attnCard = document.getElementById('training-attn-card');
+      var attnGrid = document.getElementById('training-attn-grid');
+
+      if (!snap) {
+        infoEl.innerHTML = '<span class="si-label">Step ' + step + ' - 근처에 스냅샷이 없습니다. 스냅샷 위치: ' +
+          (T.snapshots ? T.snapshots.map(function(s) { return s.step; }).join(', ') : 'N/A') + '</span>';
+        tokensEl.innerHTML = '';
+        attnCard.style.display = 'none';
+        return;
+      }
+
+      infoEl.innerHTML =
+        '<span class="si-label">Step:</span><span class="si-value">' + snap.step + '</span>' +
+        '<span class="si-label">이름:</span><span class="si-value">' + (snap.doc || 'N/A') + '</span>' +
+        '<span class="si-label">Loss:</span><span class="si-value">' + (snap.loss !== undefined ? snap.loss.toFixed(4) : 'N/A') + '</span>';
+
+      renderSnapshotTokens(snap.tokens, tokensEl);
+
+      // Attention
+      if (snap.attention && snap.attention.length > 0) {
+        attnCard.style.display = 'block';
+        attnGrid.innerHTML = '';
+        var nHeads = snap.attention.length;
+        for (var h = 0; h < nHeads; h++) {
+          var wrap = document.createElement('div');
+          var label = document.createElement('div');
+          label.className = 'attn-head-label';
+          label.textContent = 'Head ' + h;
+          var canvas = document.createElement('canvas');
+          wrap.appendChild(label);
+          wrap.appendChild(canvas);
+          attnGrid.appendChild(wrap);
+          drawAttnHeatmap(canvas, snap.attention[h], snap.tokens, h);
+        }
+      } else {
+        attnCard.style.display = 'none';
+      }
+    }
+
+    stepSlider.addEventListener('input', function() {
+      var s = parseInt(stepSlider.value);
+      stepVal.textContent = s;
+      drawLossChart();
+      drawLRChart();
+      updateTrainingSnapshot(s);
+    });
+
+    // Initial draw deferred to tab switch
+    setTimeout(function() {
+      if (currentTab === 'training') { drawLossChart(); drawLRChart(); }
+      updateTrainingSnapshot(parseInt(stepSlider.value));
+    }, 100);
+
+    // ------------------------------------------------------------------
+    // Tab 3: Inference Engine
+    // ------------------------------------------------------------------
+
+    // Math utilities
+    function linear(x, w) {
+      return w.map(function(row) {
+        var sum = 0;
+        for (var i = 0; i < x.length; i++) sum += row[i] * x[i];
+        return sum;
+      });
+    }
+
+    function softmax(logits) {
+      var maxVal = -Infinity;
+      for (var i = 0; i < logits.length; i++) {
+        if (logits[i] > maxVal) maxVal = logits[i];
+      }
+      var exps = new Array(logits.length);
+      var total = 0;
+      for (var i = 0; i < logits.length; i++) {
+        exps[i] = Math.exp(logits[i] - maxVal);
+        total += exps[i];
+      }
+      for (var i = 0; i < exps.length; i++) exps[i] /= total;
+      return exps;
+    }
+
+    function rmsnorm(x) {
+      var ms = 0;
+      for (var i = 0; i < x.length; i++) ms += x[i] * x[i];
+      ms /= x.length;
+      var scale = 1 / Math.sqrt(ms + 1e-5);
+      var out = new Array(x.length);
+      for (var i = 0; i < x.length; i++) out[i] = x[i] * scale;
+      return out;
+    }
+
+    function gptForward(tokenId, posId, keys, vals, weights) {
+      var n_embd = CFG.n_embd;
+      var n_head = CFG.n_head;
+      var head_dim = CFG.head_dim;
+      var n_layer = CFG.n_layer;
+
+      // Token + position embedding
+      var x = new Array(n_embd);
+      for (var i = 0; i < n_embd; i++) {
+        x[i] = weights.wte[tokenId][i] + weights.wpe[posId][i];
+      }
+      x = rmsnorm(x);
+
+      var allAttnWeights = []; // Per head attention weights for visualization
+
+      for (var li = 0; li < n_layer; li++) {
+        var pfx = 'layer' + li;
+        var xResidual = x.slice();
+        x = rmsnorm(x);
+
+        var q = linear(x, weights[pfx + '.attn_wq']);
+        var k = linear(x, weights[pfx + '.attn_wk']);
+        var v = linear(x, weights[pfx + '.attn_wv']);
+
+        keys[li].push(k.slice());
+        vals[li].push(v.slice());
+
+        var xAttn = [];
+        for (var h = 0; h < n_head; h++) {
+          var hs = h * head_dim;
+          var qH = q.slice(hs, hs + head_dim);
+          var T_len = keys[li].length;
+          var invSqrt = 1 / Math.sqrt(head_dim);
+
+          var attnLogits = new Array(T_len);
+          for (var t = 0; t < T_len; t++) {
+            var dot = 0;
+            for (var j = 0; j < head_dim; j++) {
+              dot += qH[j] * keys[li][t][hs + j];
+            }
+            attnLogits[t] = dot * invSqrt;
+          }
+
+          var attnW = softmax(attnLogits);
+          allAttnWeights.push(attnW.slice());
+
+          for (var j = 0; j < head_dim; j++) {
+            var s = 0;
+            for (var t = 0; t < T_len; t++) {
+              s += attnW[t] * vals[li][t][hs + j];
+            }
+            xAttn.push(s);
+          }
+        }
+
+        x = linear(xAttn, weights[pfx + '.attn_wo']);
+        for (var i = 0; i < n_embd; i++) x[i] += xResidual[i];
+
+        var xRes2 = x.slice();
+        x = rmsnorm(x);
+        x = linear(x, weights[pfx + '.mlp_fc1']);
+        for (var i = 0; i < x.length; i++) x[i] = Math.max(0, x[i]); // ReLU
+        x = linear(x, weights[pfx + '.mlp_fc2']);
+        for (var i = 0; i < n_embd; i++) x[i] += xRes2[i];
+      }
+
+      var logits = linear(x, weights.lm_head);
+      return { logits: logits, attentionWeights: allAttnWeights };
+    }
+
+    function sampleWithTemperature(logits, temperature, rng) {
+      var scaled = new Array(logits.length);
+      for (var i = 0; i < logits.length; i++) scaled[i] = logits[i] / temperature;
+      var probs = softmax(scaled);
+      var r = rng();
+      var cumulative = 0;
+      for (var i = 0; i < probs.length; i++) {
+        cumulative += probs[i];
+        if (r < cumulative) return { tokenId: i, probs: probs };
+      }
+      return { tokenId: probs.length - 1, probs: probs };
+    }
+
+    function mulberry32(seed) {
+      return function() {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    // Inference state
+    var infState = {
+      running: false,
+      autoMode: false,
+      autoTimer: null,
+      tokens: [],
+      keys: [],
+      vals: [],
+      pos: 0,
+      currentToken: BOS,
+      rng: null,
+      lastProbs: null,
+      lastSampledId: -1,
+      allAttnByPos: [], // allAttnByPos[pos] = array of per-head attention weights
+      activeBlock: -1,
+      sortByProb: true
+    };
+
+    // Architecture flow blocks
+    var archBlocks = [
+      { label: 'Input Token', dim: '[1]' },
+      { label: 'Token + Pos Embedding', dim: '[16]' },
+      { label: 'RMSNorm', dim: '[16]' },
+      { label: 'RMSNorm', dim: '[16]' },
+      { label: 'Q, K, V Projection', dim: '[16] each' },
+      { label: 'Scaled Dot-Product Attention', dim: '[4] x 4 heads' },
+      { label: 'Output Projection + Residual', dim: '[16]' },
+      { label: 'RMSNorm', dim: '[16]' },
+      { label: 'MLP (16\u219264\u219216) + Residual', dim: '[16]' },
+      { label: 'LM Head', dim: '[27]' },
+      { label: 'Softmax \u2192 Sample', dim: '[27] probs' }
+    ];
+
+    function buildArchFlow() {
+      var container = document.getElementById('arch-flow');
+      container.innerHTML = '';
+      archBlocks.forEach(function(block, idx) {
+        var el = document.createElement('div');
+        el.className = 'arch-block';
+        el.id = 'arch-block-' + idx;
+        el.innerHTML = block.label + '<span class="dim-tag">' + block.dim + '</span>';
+        container.appendChild(el);
+        if (idx < archBlocks.length - 1) {
+          var arrow = document.createElement('div');
+          arrow.className = 'arch-arrow';
+          container.appendChild(arrow);
+        }
+      });
+    }
+    buildArchFlow();
+
+    function highlightArchBlock(idx) {
+      archBlocks.forEach(function(_, i) {
+        var el = document.getElementById('arch-block-' + i);
+        if (el) el.classList.toggle('active', i === idx);
+      });
+    }
+
+    function updateGenDisplay() {
+      var display = document.getElementById('gen-text-display');
+      if (infState.tokens.length === 0) {
+        display.innerHTML = '<span style="color:var(--text-secondary); font-size:1rem; font-weight:400;">Generate를 클릭하여 이름을 생성하세요</span>';
+        return;
+      }
+      var html = '';
+      infState.tokens.forEach(function(tid, idx) {
+        var ch = tid === BOS ? 'BOS' : V[tid];
+        var color = tid === BOS ? 'var(--accent-purple)' : 'var(--text-primary)';
+        html += '<span class="gen-char" style="animation-delay:' + (idx * 0.05) + 's; color:' + color + '">';
+        html += '<span class="gc-letter">' + ch + '</span>';
+        html += '<span class="gc-id">' + tid + '</span>';
+        html += '</span>';
+      });
+      display.innerHTML = html;
+    }
+
+    function updateProbBars() {
+      var container = document.getElementById('prob-bars');
+      var probs = infState.lastProbs;
+      if (!probs) {
+        container.innerHTML = '<div style="color:var(--text-secondary); font-size:0.85rem; padding:20px; text-align:center;">아직 확률 데이터가 없습니다</div>';
+        return;
+      }
+
+      // Build array of {id, prob, label}
+      var items = [];
+      for (var i = 0; i < probs.length; i++) {
+        items.push({ id: i, prob: probs[i], label: i === BOS ? 'BOS' : V[i] });
+      }
+
+      if (infState.sortByProb) {
+        items.sort(function(a, b) { return b.prob - a.prob; });
+      }
+
+      var maxProb = Math.max.apply(null, probs);
+      var html = '';
+      items.forEach(function(item, idx) {
+        var pct = (item.prob * 100).toFixed(1);
+        var barW = maxProb > 0 ? (item.prob / maxProb * 100) : 0;
+        var isSampled = item.id === infState.lastSampledId;
+        // Color gradient: green (high) to gray (low)
+        var t = maxProb > 0 ? item.prob / maxProb : 0;
+        var r = Math.round(63 + (1 - t) * (100 - 63));
+        var g = Math.round(185 * t + 80 * (1 - t));
+        var b = Math.round(80 * t + 80 * (1 - t));
+        if (isSampled) { r = 210; g = 153; b = 34; }
+        var barColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+
+        html += '<div class="prob-bar-row' + (isSampled ? ' sampled' : '') + '">';
+        html += '<div class="prob-bar-label">' + item.label + '</div>';
+        html += '<div class="prob-bar-track"><div class="prob-bar-fill" style="width:' + barW + '%; background:' + barColor + '"></div></div>';
+        html += '<div class="prob-bar-pct">' + pct + '%</div>';
+        html += '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function updateInferenceAttn() {
+      var grid = document.getElementById('inference-attn-grid');
+      grid.innerHTML = '';
+      if (infState.allAttnByPos.length === 0) return;
+
+      var nHeads = CFG.n_head;
+      // Build per-head attention matrices
+      // allAttnByPos[pos] = [head0_weights, head1_weights, ...]
+      // head_weights is an array of length (pos+1) with attention values
+      for (var h = 0; h < nHeads; h++) {
+        var headData = [];
+        for (var p = 0; p < infState.allAttnByPos.length; p++) {
+          var posData = infState.allAttnByPos[p];
+          if (posData && posData[h]) {
+            headData.push(posData[h]);
+          }
+        }
+        var wrap = document.createElement('div');
+        var label = document.createElement('div');
+        label.className = 'attn-head-label';
+        label.textContent = 'Head ' + h;
+        var canvas = document.createElement('canvas');
+        wrap.appendChild(label);
+        wrap.appendChild(canvas);
+        grid.appendChild(wrap);
+
+        // Build tokens list for labels
+        var toks = [];
+        // First token is always BOS
+        toks.push(BOS);
+        for (var i = 1; i < infState.tokens.length; i++) {
+          toks.push(infState.tokens[i]);
+        }
+        drawAttnHeatmap(canvas, headData, toks, h);
+      }
+    }
+
+    function resetInference() {
+      if (infState.autoTimer) { clearTimeout(infState.autoTimer); infState.autoTimer = null; }
+      infState.running = false;
+      infState.tokens = [];
+      infState.keys = [];
+      infState.vals = [];
+      for (var li = 0; li < CFG.n_layer; li++) {
+        infState.keys.push([]);
+        infState.vals.push([]);
+      }
+      infState.pos = 0;
+      infState.currentToken = BOS;
+      infState.lastProbs = null;
+      infState.lastSampledId = -1;
+      infState.allAttnByPos = [];
+      infState.activeBlock = -1;
+      var seed = parseInt(document.getElementById('seed-input').value) || 42;
+      infState.rng = mulberry32(seed);
+      updateGenDisplay();
+      updateProbBars();
+      updateInferenceAttn();
+      highlightArchBlock(-1);
+    }
+
+    function inferenceStep() {
+      if (infState.pos >= CFG.block_size) {
+        infState.running = false;
+        return false;
+      }
+
+      var temperature = parseFloat(document.getElementById('temp-slider').value) || 0.5;
+
+      // Animate architecture blocks in sequence
+      var blockSequence = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      var delay = 0;
+      var stepDelay = 30;
+
+      blockSequence.forEach(function(blockIdx, i) {
+        setTimeout(function() { highlightArchBlock(blockIdx); }, i * stepDelay);
+      });
+
+      // Run forward pass
+      var result = gptForward(infState.currentToken, infState.pos, infState.keys, infState.vals, W);
+
+      // Sample
+      var sampled = sampleWithTemperature(result.logits, temperature, infState.rng);
+
+      // Store attention for visualization
+      infState.allAttnByPos.push(result.attentionWeights);
+
+      // Add current token to display (on first step, add BOS)
+      if (infState.pos === 0) {
+        infState.tokens.push(BOS);
+      }
+
+      infState.lastProbs = sampled.probs;
+      infState.lastSampledId = sampled.tokenId;
+
+      // Check if generation should stop
+      if (sampled.tokenId === BOS) {
+        infState.tokens.push(BOS);
+        infState.running = false;
+        updateGenDisplay();
+        updateProbBars();
+        updateInferenceAttn();
+        setTimeout(function() { highlightArchBlock(-1); }, blockSequence.length * stepDelay);
+        return false;
+      }
+
+      infState.tokens.push(sampled.tokenId);
+      infState.currentToken = sampled.tokenId;
+      infState.pos++;
+
+      updateGenDisplay();
+      updateProbBars();
+      updateInferenceAttn();
+
+      setTimeout(function() { highlightArchBlock(-1); }, blockSequence.length * stepDelay);
+      return true;
+    }
+
+    // Button handlers
+    document.getElementById('btn-generate').addEventListener('click', function() {
+      resetInference();
+      infState.running = true;
+
+      // Run full generation with auto stepping
+      var speed = parseInt(document.getElementById('speed-slider').value) || 500;
+      function autoStep() {
+        if (!infState.running) return;
+        var cont = inferenceStep();
+        if (cont) {
+          infState.autoTimer = setTimeout(autoStep, speed);
+        }
+      }
+      autoStep();
+    });
+
+    document.getElementById('btn-step').addEventListener('click', function() {
+      if (infState.tokens.length === 0) {
+        resetInference();
+        infState.running = true;
+      }
+      if (infState.running) {
+        inferenceStep();
+      }
+    });
+
+    document.getElementById('btn-auto').addEventListener('click', function() {
+      var btn = document.getElementById('btn-auto');
+      infState.autoMode = !infState.autoMode;
+      btn.classList.toggle('active-toggle', infState.autoMode);
+      btn.textContent = infState.autoMode ? 'Auto: ON' : 'Auto';
+
+      if (infState.autoMode && infState.running) {
+        var speed = parseInt(document.getElementById('speed-slider').value) || 500;
+        function autoStep() {
+          if (!infState.autoMode || !infState.running) return;
+          var cont = inferenceStep();
+          if (cont) {
+            infState.autoTimer = setTimeout(autoStep, speed);
+          } else {
+            infState.autoMode = false;
+            btn.classList.remove('active-toggle');
+            btn.textContent = 'Auto';
+          }
+        }
+        autoStep();
+      } else if (!infState.autoMode && infState.autoTimer) {
+        clearTimeout(infState.autoTimer);
+        infState.autoTimer = null;
+      }
+    });
+
+    document.getElementById('temp-slider').addEventListener('input', function() {
+      document.getElementById('temp-val').textContent = parseFloat(this.value).toFixed(2);
+    });
+
+    document.getElementById('speed-slider').addEventListener('input', function() {
+      document.getElementById('speed-val').textContent = this.value + 'ms';
+    });
+
+    document.getElementById('btn-sort-toggle').addEventListener('click', function() {
+      infState.sortByProb = !infState.sortByProb;
+      this.textContent = infState.sortByProb ? '정렬: 확률순' : '정렬: 알파벳순';
+      updateProbBars();
+    });
+
+    // Initialize inference display
+    resetInference();
+    updateProbBars();
+
+    // ------------------------------------------------------------------
+    // Tab 4: Backprop
+    // ------------------------------------------------------------------
+    var bpState = {
+      a: 2, b: 3, c: 4,
+      phase: 'idle', // idle, forward, backward
+      animStep: 0,
+      animTimer: null,
+      // Computed values
+      ab: 0, f: 0,
+      // Gradients
+      df_df: 1,
+      df_dplus: 1,
+      df_dc: 1,
+      df_dmul: 1,
+      df_da: 0,
+      df_db: 0
+    };
+
+    // Node positions (relative to canvas)
+    var bpNodes = {
+      a:    { x: 120, y: 80,  label: 'a',  type: 'input' },
+      b:    { x: 120, y: 200, label: 'b',  type: 'input' },
+      c:    { x: 420, y: 280, label: 'c',  type: 'input' },
+      mul:  { x: 280, y: 140, label: '\u00d7',  type: 'op' },
+      add:  { x: 500, y: 180, label: '+',  type: 'op' },
+      f:    { x: 650, y: 180, label: 'f',  type: 'output' }
+    };
+    var bpEdges = [
+      { from: 'a', to: 'mul' },
+      { from: 'b', to: 'mul' },
+      { from: 'mul', to: 'add' },
+      { from: 'c', to: 'add' },
+      { from: 'add', to: 'f' }
+    ];
+
+    function drawBPGraph() {
+      var canvas = document.getElementById('bp-canvas');
+      var size = getCanvasSize(canvas);
+      var ctx = setupCanvas(canvas, size.w, size.h);
+      var w = size.w, h = size.h;
+      var scaleX = w / 780;
+      var scaleY = h / 380;
+
+      function tx(x) { return x * scaleX; }
+      function ty(y) { return y * scaleY; }
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw edges
+      bpEdges.forEach(function(edge, idx) {
+        var from = bpNodes[edge.from];
+        var to = bpNodes[edge.to];
+        ctx.beginPath();
+        ctx.moveTo(tx(from.x), ty(from.y));
+        ctx.lineTo(tx(to.x), ty(to.y));
+
+        var isBackward = bpState.phase === 'backward';
+        var isForward = bpState.phase === 'forward';
+
+        // Edge color based on animation state
+        if (isForward && bpState.animStep > idx) {
+          ctx.strokeStyle = '#3fb950';
+          ctx.lineWidth = 2.5;
+        } else if (isBackward) {
+          // Reverse edges
+          var revIdx = bpEdges.length - 1 - idx;
+          if (bpState.animStep > revIdx) {
+            ctx.strokeStyle = '#f85149';
+            ctx.lineWidth = 2.5;
+          } else {
+            ctx.strokeStyle = 'rgba(48,54,61,0.8)';
+            ctx.lineWidth = 1.5;
+          }
+        } else {
+          ctx.strokeStyle = 'rgba(48,54,61,0.8)';
+          ctx.lineWidth = 1.5;
+        }
+        ctx.stroke();
+
+        // Arrow head
+        var angle = Math.atan2(ty(to.y) - ty(from.y), tx(to.x) - tx(from.x));
+        var arrowLen = 10;
+        var midX, midY;
+
+        if (isBackward && bpState.animStep > (bpEdges.length - 1 - idx)) {
+          // Draw backward arrow (reversed direction)
+          midX = (tx(from.x) + tx(to.x)) / 2;
+          midY = (ty(from.y) + ty(to.y)) / 2;
+          var revAngle = angle + Math.PI;
+          ctx.beginPath();
+          ctx.moveTo(midX, midY);
+          ctx.lineTo(midX - arrowLen * Math.cos(revAngle - 0.4), midY - arrowLen * Math.sin(revAngle - 0.4));
+          ctx.moveTo(midX, midY);
+          ctx.lineTo(midX - arrowLen * Math.cos(revAngle + 0.4), midY - arrowLen * Math.sin(revAngle + 0.4));
+          ctx.strokeStyle = '#f85149';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          // Forward arrow
+          midX = tx(to.x) - 24 * Math.cos(angle);
+          midY = ty(to.y) - 24 * Math.sin(angle);
+          ctx.beginPath();
+          ctx.moveTo(midX, midY);
+          ctx.lineTo(midX - arrowLen * Math.cos(angle - 0.4), midY - arrowLen * Math.sin(angle - 0.4));
+          ctx.moveTo(midX, midY);
+          ctx.lineTo(midX - arrowLen * Math.cos(angle + 0.4), midY - arrowLen * Math.sin(angle + 0.4));
+          if (isForward && bpState.animStep > idx) {
+            ctx.strokeStyle = '#3fb950';
+          } else {
+            ctx.strokeStyle = 'rgba(48,54,61,0.8)';
+          }
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Edge labels for gradients during backward
+        if (isBackward) {
+          var gradLabels = ['df/da=' + bpState.df_da, 'df/db=' + bpState.df_db, 'df/d(\u00d7)=' + bpState.df_dmul, 'df/dc=' + bpState.df_dc, 'df/df=' + bpState.df_df];
+          var revIdx2 = bpEdges.length - 1 - idx;
+          if (bpState.animStep > revIdx2) {
+            midX = (tx(from.x) + tx(to.x)) / 2;
+            midY = (ty(from.y) + ty(to.y)) / 2 - 14;
+            ctx.font = 'bold 11px monospace';
+            ctx.fillStyle = '#f85149';
+            ctx.textAlign = 'center';
+            ctx.fillText(gradLabels[idx], midX, midY);
+          }
+        }
+      });
+
+      // Draw nodes
+      Object.keys(bpNodes).forEach(function(key) {
+        var node = bpNodes[key];
+        var nx = tx(node.x);
+        var ny = ty(node.y);
+        var radius = 26 * Math.min(scaleX, scaleY);
+
+        // Node background
+        ctx.beginPath();
+        ctx.arc(nx, ny, radius, 0, Math.PI * 2);
+
+        var isActive = false;
+        if (bpState.phase === 'forward') {
+          var order = ['a', 'b', 'mul', 'c', 'add', 'f'];
+          var nodeStep = order.indexOf(key);
+          isActive = bpState.animStep >= (nodeStep >= 2 ? nodeStep - 1 : 0) && nodeStep >= 0;
+          if (key === 'a' || key === 'b') isActive = true;
+          if (key === 'mul') isActive = bpState.animStep >= 1;
+          if (key === 'c') isActive = true;
+          if (key === 'add') isActive = bpState.animStep >= 3;
+          if (key === 'f') isActive = bpState.animStep >= 5;
+        } else if (bpState.phase === 'backward') {
+          var revOrder = ['f', 'add', 'c', 'mul', 'a', 'b'];
+          var revStep = revOrder.indexOf(key);
+          isActive = bpState.animStep >= revStep;
+        }
+
+        if (node.type === 'input') {
+          ctx.fillStyle = isActive ? 'rgba(88,166,255,0.2)' : 'rgba(22,27,34,0.95)';
+          ctx.strokeStyle = isActive ? '#58a6ff' : 'var(--border)';
+        } else if (node.type === 'op') {
+          ctx.fillStyle = isActive ? 'rgba(210,153,34,0.2)' : 'rgba(22,27,34,0.95)';
+          ctx.strokeStyle = isActive ? '#d29922' : 'var(--border)';
+        } else {
+          ctx.fillStyle = isActive ? 'rgba(63,185,80,0.2)' : 'rgba(22,27,34,0.95)';
+          ctx.strokeStyle = isActive ? '#3fb950' : 'var(--border)';
+        }
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+
+        // Node label
+        ctx.font = 'bold 16px monospace';
+        ctx.fillStyle = '#c9d1d9';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.label, nx, ny);
+
+        // Value below node
+        var valueText = '';
+        if (bpState.phase === 'forward' || bpState.phase === 'backward') {
+          if (key === 'a') valueText = bpState.a.toString();
+          else if (key === 'b') valueText = bpState.b.toString();
+          else if (key === 'c') valueText = bpState.c.toString();
+          else if (key === 'mul' && (bpState.phase === 'forward' ? bpState.animStep >= 2 : true)) valueText = bpState.ab.toString();
+          else if (key === 'add' && (bpState.phase === 'forward' ? bpState.animStep >= 4 : true)) valueText = bpState.f.toString();
+          else if (key === 'f' && (bpState.phase === 'forward' ? bpState.animStep >= 5 : true)) valueText = bpState.f.toString();
+        } else if (bpState.phase === 'idle') {
+          if (key === 'a') valueText = bpState.a.toString();
+          else if (key === 'b') valueText = bpState.b.toString();
+          else if (key === 'c') valueText = bpState.c.toString();
+        }
+
+        if (valueText) {
+          ctx.font = '12px monospace';
+          ctx.fillStyle = '#58a6ff';
+          ctx.fillText('= ' + valueText, nx, ny + radius + 14);
+        }
+
+        // Gradient above node during backward
+        if (bpState.phase === 'backward') {
+          var gradText = '';
+          if (key === 'f' && bpState.animStep >= 0) gradText = 'grad=1';
+          else if (key === 'add' && bpState.animStep >= 1) gradText = 'grad=1';
+          else if (key === 'c' && bpState.animStep >= 2) gradText = 'grad=1';
+          else if (key === 'mul' && bpState.animStep >= 3) gradText = 'grad=1';
+          else if (key === 'a' && bpState.animStep >= 4) gradText = 'grad=' + bpState.df_da;
+          else if (key === 'b' && bpState.animStep >= 5) gradText = 'grad=' + bpState.df_db;
+
+          if (gradText) {
+            ctx.font = 'bold 11px monospace';
+            ctx.fillStyle = '#f85149';
+            ctx.fillText(gradText, nx, ny - radius - 10);
+          }
+        }
+      });
+    }
+
+    function bpForward() {
+      bpState.a = parseFloat(document.getElementById('bp-a').value) || 0;
+      bpState.b = parseFloat(document.getElementById('bp-b').value) || 0;
+      bpState.c = parseFloat(document.getElementById('bp-c').value) || 0;
+      bpState.ab = bpState.a * bpState.b;
+      bpState.f = bpState.ab + bpState.c;
+      bpState.phase = 'forward';
+      bpState.animStep = 0;
+
+      if (bpState.animTimer) clearInterval(bpState.animTimer);
+      bpState.animTimer = setInterval(function() {
+        bpState.animStep++;
+        drawBPGraph();
+        if (bpState.animStep >= 6) {
+          clearInterval(bpState.animTimer);
+          bpState.animTimer = null;
+          updateChainRuleForward();
+        }
+      }, 300);
+      drawBPGraph();
+    }
+
+    function bpBackward() {
+      if (bpState.phase !== 'forward' && bpState.phase !== 'backward') {
+        // Need to run forward first
+        bpState.a = parseFloat(document.getElementById('bp-a').value) || 0;
+        bpState.b = parseFloat(document.getElementById('bp-b').value) || 0;
+        bpState.c = parseFloat(document.getElementById('bp-c').value) || 0;
+        bpState.ab = bpState.a * bpState.b;
+        bpState.f = bpState.ab + bpState.c;
+      }
+
+      // Compute gradients
+      bpState.df_df = 1;
+      bpState.df_dplus = 1;
+      bpState.df_dc = 1;
+      bpState.df_dmul = 1;
+      bpState.df_da = bpState.b;
+      bpState.df_db = bpState.a;
+
+      bpState.phase = 'backward';
+      bpState.animStep = 0;
+
+      if (bpState.animTimer) clearInterval(bpState.animTimer);
+      bpState.animTimer = setInterval(function() {
+        bpState.animStep++;
+        drawBPGraph();
+        if (bpState.animStep >= 6) {
+          clearInterval(bpState.animTimer);
+          bpState.animTimer = null;
+          updateChainRuleBackward();
+        }
+      }, 400);
+      drawBPGraph();
+    }
+
+    function bpReset() {
+      if (bpState.animTimer) { clearInterval(bpState.animTimer); bpState.animTimer = null; }
+      bpState.phase = 'idle';
+      bpState.animStep = 0;
+      bpState.a = parseFloat(document.getElementById('bp-a').value) || 0;
+      bpState.b = parseFloat(document.getElementById('bp-b').value) || 0;
+      bpState.c = parseFloat(document.getElementById('bp-c').value) || 0;
+      drawBPGraph();
+
+      var panel = document.getElementById('chain-rule-panel');
+      panel.innerHTML =
+        '<div class="eq">f = (a \u00d7 b) + c</div>' +
+        '<div class="eq" style="margin-top:8px;">순전파 (Forward)와 역전파 (Backward) 버튼을 클릭하여 계산 과정을 확인하세요.</div>';
+    }
+
+    function updateChainRuleForward() {
+      var panel = document.getElementById('chain-rule-panel');
+      var a = bpState.a, b = bpState.b, c = bpState.c;
+      panel.innerHTML =
+        '<div class="eq"><span class="highlight">순전파 (Forward Pass)</span></div>' +
+        '<div class="eq">1. a \u00d7 b = ' + a + ' \u00d7 ' + b + ' = <span class="highlight">' + (a * b) + '</span></div>' +
+        '<div class="eq">2. (a \u00d7 b) + c = ' + (a * b) + ' + ' + c + ' = <span class="highlight">' + (a * b + c) + '</span></div>' +
+        '<div class="eq" style="margin-top:8px;">f = <span class="highlight">' + (a * b + c) + '</span></div>';
+    }
+
+    function updateChainRuleBackward() {
+      var panel = document.getElementById('chain-rule-panel');
+      var a = bpState.a, b = bpState.b, c = bpState.c;
+      panel.innerHTML =
+        '<div class="eq"><span class="grad-val">역전파 (Backward Pass) - Chain Rule</span></div>' +
+        '<div class="eq" style="margin-top:6px;">df/df = <span class="grad-val">1</span> (시작점)</div>' +
+        '<div class="eq" style="margin-top:4px;">f = (a\u00d7b) + c 이므로:</div>' +
+        '<div class="eq">&nbsp;&nbsp;df/d(a\u00d7b) = <span class="grad-val">1</span> &nbsp;&nbsp;(덧셈의 미분)</div>' +
+        '<div class="eq">&nbsp;&nbsp;df/dc = <span class="grad-val">1</span> &nbsp;&nbsp;(덧셈의 미분)</div>' +
+        '<div class="eq" style="margin-top:4px;">a\u00d7b 이므로 (곱셈 규칙):</div>' +
+        '<div class="eq">&nbsp;&nbsp;d(a\u00d7b)/da = b = <span class="grad-val">' + b + '</span></div>' +
+        '<div class="eq">&nbsp;&nbsp;d(a\u00d7b)/db = a = <span class="grad-val">' + a + '</span></div>' +
+        '<div class="eq" style="margin-top:6px;">체인룰 적용 (Chain Rule):</div>' +
+        '<div class="eq">&nbsp;&nbsp;df/da = df/d(a\u00d7b) \u00d7 d(a\u00d7b)/da = 1 \u00d7 ' + b + ' = <span class="grad-val">' + b + '</span></div>' +
+        '<div class="eq">&nbsp;&nbsp;df/db = df/d(a\u00d7b) \u00d7 d(a\u00d7b)/db = 1 \u00d7 ' + a + ' = <span class="grad-val">' + a + '</span></div>' +
+        '<div class="eq">&nbsp;&nbsp;df/dc = <span class="grad-val">1</span></div>';
+    }
+
+    document.getElementById('bp-forward').addEventListener('click', bpForward);
+    document.getElementById('bp-backward').addEventListener('click', bpBackward);
+    document.getElementById('bp-reset').addEventListener('click', bpReset);
+
+    // Redraw on input change
+    ['bp-a', 'bp-b', 'bp-c'].forEach(function(id) {
+      document.getElementById(id).addEventListener('input', function() {
+        if (bpState.phase === 'idle') {
+          bpState.a = parseFloat(document.getElementById('bp-a').value) || 0;
+          bpState.b = parseFloat(document.getElementById('bp-b').value) || 0;
+          bpState.c = parseFloat(document.getElementById('bp-c').value) || 0;
+          drawBPGraph();
+        }
+      });
+    });
+
+    // Initial draw
+    setTimeout(function() { drawBPGraph(); }, 50);
+
+    // ------------------------------------------------------------------
+    // Window resize handler
+    // ------------------------------------------------------------------
+    var resizeTimer;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function() {
+        if (currentTab === 'training') { drawLossChart(); drawLRChart(); }
+        if (currentTab === 'backprop') { drawBPGraph(); }
+      }, 150);
+    });
+
+  })();
+  </script>
+</body>
+</html>

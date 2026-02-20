@@ -1,0 +1,26 @@
+# Build artifacts
+build/
+microgpt
+viz/export_weights
+
+# Data
+# input.txt is included (Karpathy's makemore names dataset)
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Tool caches
+.omc/
+.playwright-mcp/
+
+# Claude Code
+.claude/
+CLAUDE.md
