@@ -67,6 +67,7 @@
     /* Tabs */
     .tab-bar {
       display: flex;
+      flex-wrap: wrap;
       gap: 0;
       border-bottom: 1px solid var(--border);
       margin-top: 12px;
@@ -104,6 +105,9 @@
     .tab-btn[data-tab="training"].active::after { background: var(--accent-green); }
     .tab-btn[data-tab="inference"].active::after { background: var(--accent-orange); }
     .tab-btn[data-tab="backprop"].active::after { background: var(--accent-red); }
+    .tab-btn[data-tab="internals"].active::after { background: var(--accent-purple); }
+    .tab-btn[data-tab="pipeline"].active::after { background: var(--accent-green); }
+    .tab-btn[data-tab="lab"].active::after { background: var(--accent-orange); }
 
     .tab-content { display: none; padding: 28px 0 48px; animation: fadeIn 0.35s ease; }
     .tab-content.active { display: block; }
@@ -591,6 +595,200 @@
     .dataset-example .val-green { color: var(--accent-green); }
     .dataset-example .val-orange { color: var(--accent-orange); }
     @media (max-width: 700px) { .dataset-explain { grid-template-columns: 1fr; } }
+
+    /* === Tab 5/6/7 new component styles === */
+    .matrix-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .matrix-selector button {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .matrix-selector button:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+    .matrix-selector button.active {
+      background: rgba(188,140,255,0.15);
+      border-color: var(--accent-purple);
+      color: var(--accent-purple);
+      font-weight: 600;
+    }
+
+    .heatmap-container { position: relative; }
+    .color-legend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+    .color-legend .legend-bar {
+      flex: 1;
+      height: 12px;
+      border-radius: 3px;
+      background: linear-gradient(to right, #3b82f6, #1e293b, #f97316);
+    }
+
+    .matrix-stats {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 2.2;
+      padding: 16px 20px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+    }
+    .matrix-stats .ms-label { color: var(--text-secondary); display: inline-block; min-width: 60px; }
+    .matrix-stats .ms-value { color: var(--accent-blue); font-weight: 600; }
+
+    .pipeline-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      transition: all 0.3s;
+    }
+    .pipeline-step .ps-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .pipeline-step .ps-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+    .pipeline-step .ps-dim {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      margin-left: auto;
+    }
+    .pipeline-step.active {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 16px rgba(63,185,80,0.15);
+    }
+    .pipeline-step.active .ps-num {
+      background: rgba(63,185,80,0.2);
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+    .pipeline-step.completed {
+      opacity: 0.6;
+    }
+    .pipeline-step.pending {
+      opacity: 0.35;
+    }
+
+    .vector-display {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      margin-top: 6px;
+    }
+    .vector-cell {
+      width: 28px; height: 28px;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.55rem;
+      cursor: default;
+      position: relative;
+      transition: transform 0.15s;
+    }
+    .vector-cell:hover { transform: scale(1.4); z-index: 2; }
+    .vector-cell.compact { width: 12px; height: 12px; font-size: 0; }
+    .vector-cell.compact:hover { transform: scale(2.0); font-size: 0.5rem; width: 36px; }
+
+    .experiment-section {
+      margin-bottom: 20px;
+    }
+
+    .temp-compare {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .temp-compare .tc-col {
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .temp-compare .tc-title {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .temp-compare .tc-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 3px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+    }
+    .temp-compare .tc-label { width: 28px; text-align: right; color: var(--text-secondary); flex-shrink: 0; }
+    .temp-compare .tc-track { flex: 1; height: 14px; background: rgba(255,255,255,0.03); border-radius: 3px; overflow: hidden; }
+    .temp-compare .tc-fill { height: 100%; border-radius: 3px; }
+    .temp-compare .tc-pct { width: 40px; text-align: right; color: var(--text-secondary); font-size: 0.65rem; flex-shrink: 0; }
+    @media (max-width: 768px) { .temp-compare { grid-template-columns: 1fr 1fr; } }
+
+    .sample-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .sample-item {
+      text-align: center;
+      padding: 10px 8px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .sample-item:hover { border-color: var(--accent-green); background: rgba(63,185,80,0.06); }
+    .sample-item .si-seed { font-size: 0.65rem; color: var(--text-secondary); font-weight: 400; margin-top: 2px; }
+
+    select {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      cursor: pointer;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent-blue); }
   </style>
 </head>
 <body>
@@ -609,6 +807,9 @@
       <button class="tab-btn" data-tab="training">2. 학습 Training</button>
       <button class="tab-btn" data-tab="inference">3. 추론 Inference</button>
       <button class="tab-btn" data-tab="backprop">4. 역전파 Backprop</button>
+      <button class="tab-btn" data-tab="internals">5. GPT 내부 구조</button>
+      <button class="tab-btn" data-tab="pipeline">6. 순전파 파이프라인</button>
+      <button class="tab-btn" data-tab="lab">7. 실험실 Lab</button>
     </div>
 
     <!-- ================================================================ -->
@@ -823,6 +1024,108 @@
         <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch11-backward.md" target="_blank">Ch11: 역전파 구현<span class="link-arrow">&rarr;</span></a>
       </div>
     </div>
+
+    <!-- ================================================================ -->
+    <!-- Tab 5: GPT 내부 구조 (Internals) -->
+    <!-- ================================================================ -->
+    <div id="tab-internals" class="tab-content">
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-purple)"></span>가중치 행렬 탐색기</div>
+        <div class="matrix-selector" id="matrix-selector"></div>
+        <div class="grid-2" style="margin-top:16px;">
+          <div>
+            <div class="canvas-wrap" style="height:400px;">
+              <canvas id="matrix-canvas"></canvas>
+            </div>
+            <div class="color-legend" id="matrix-legend">
+              <span>음수</span>
+              <div class="legend-bar"></div>
+              <span>양수</span>
+            </div>
+          </div>
+          <div class="matrix-stats" id="matrix-stats"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-blue)"></span>임베딩 공간: 토큰 유사도</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">각 토큰의 16차원 임베딩 벡터 간 코사인 유사도. 비슷한 문자는 밝게 표시됩니다.</p>
+        <div class="canvas-wrap" style="height:420px;">
+          <canvas id="similarity-canvas"></canvas>
+        </div>
+      </div>
+
+      <div class="doc-links">
+        <div class="doc-links-title">자세히 알아보기</div>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch08-value-struct.md" target="_blank">Ch08: Value 구조체<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch14-parameters.md" target="_blank">Ch14: 파라미터 초기화<span class="link-arrow">&rarr;</span></a>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Tab 6: 순전파 파이프라인 (Pipeline) -->
+    <!-- ================================================================ -->
+    <div id="tab-pipeline" class="tab-content">
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>순전파 파이프라인 — 실제 숫자로 따라가기</div>
+        <div class="controls-bar">
+          <label>입력 토큰: <select id="pipe-token"></select></label>
+          <label>위치: <input type="number" id="pipe-pos" value="0" min="0" max="15" style="width:60px"></label>
+          <button class="btn btn-green" id="pipe-run">전체 실행</button>
+          <button class="btn btn-blue" id="pipe-step">다음 단계</button>
+          <button class="btn" id="pipe-reset">초기화</button>
+          <span id="pipe-step-label" style="color:var(--text-secondary);font-size:0.85rem;margin-left:12px;">단계: 0 / 16</span>
+        </div>
+      </div>
+
+      <div id="pipeline-steps"></div>
+
+      <div class="doc-links">
+        <div class="doc-links-title">자세히 알아보기</div>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch15-gpt-forward.md" target="_blank">Ch15: GPT 순전파<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch12-nn-building-blocks.md" target="_blank">Ch12: 신경망 빌딩 블록<span class="link-arrow">&rarr;</span></a>
+      </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- Tab 7: 실험실 Lab -->
+    <!-- ================================================================ -->
+    <div id="tab-lab" class="tab-content">
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-orange)"></span>실험 1: Temperature 효과</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">같은 컨텍스트 "BOS→k→a" 다음 토큰의 확률분포를 Temperature별로 비교합니다.</p>
+        <div class="temp-compare" id="temp-compare"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>실험 2: 다중 샘플링</div>
+        <div class="controls-bar">
+          <label>Temperature: <input type="number" id="lab-temp" value="0.8" step="0.1" min="0.1" max="3.0" style="width:70px"></label>
+          <label>개수: <input type="number" id="lab-count" value="20" min="5" max="50" style="width:60px"></label>
+          <button class="btn btn-green" id="lab-generate">생성</button>
+        </div>
+        <div class="sample-grid" id="lab-samples"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-blue)"></span>실험 3: 어텐션 탐색기</div>
+        <div class="controls-bar">
+          <input type="text" id="lab-attn-input" placeholder="이름 입력 (예: michael)" maxlength="15" autocomplete="off" spellcheck="false" style="flex:1">
+          <button class="btn btn-blue" id="lab-attn-run">분석</button>
+        </div>
+        <div id="lab-attn-result"></div>
+      </div>
+
+      <div class="doc-links">
+        <div class="doc-links-title">자세히 알아보기</div>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch17-inference.md" target="_blank">Ch17: 추론<span class="link-arrow">&rarr;</span></a>
+        <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part1-python/ch05-transformer-and-training.md" target="_blank">Ch05: Transformer와 학습<span class="link-arrow">&rarr;</span></a>
+      </div>
+    </div>
+
   </div>
 
   <div id="error-container" class="container" style="display:none;">
@@ -884,6 +1187,9 @@ python microgpt.py<br><br>
       currentTab = tab;
       if (tab === 'training') { drawLossChart(); drawLRChart(); }
       if (tab === 'backprop') { drawBPGraph(); }
+      if (tab === 'internals') { initInternals(); }
+      if (tab === 'pipeline') { initPipeline(); }
+      if (tab === 'lab') { initLab(); }
     }
 
     tabButtons.forEach(function(btn) {
@@ -894,16 +1200,7 @@ python microgpt.py<br><br>
       });
     });
 
-    // Hash routing: #tokenizer, #training, #inference, #backprop
-    var validTabs = ['tokenizer', 'training', 'inference', 'backprop'];
-    var hash = location.hash.replace('#', '');
-    if (validTabs.indexOf(hash) !== -1 && hash !== 'tokenizer') {
-      switchTab(hash);
-    }
-    window.addEventListener('hashchange', function() {
-      var h = location.hash.replace('#', '');
-      if (validTabs.indexOf(h) !== -1) switchTab(h);
-    });
+    // Hash routing is deferred to after all tab init code — see end of script
 
     // ------------------------------------------------------------------
     // Utility: HiDPI canvas setup
@@ -2093,6 +2390,747 @@ python microgpt.py<br><br>
     setTimeout(function() { drawBPGraph(); }, 50);
 
     // ------------------------------------------------------------------
+    // Tab 5: GPT 내부 구조 (Internals)
+    // ------------------------------------------------------------------
+    var internalsInitialized = false;
+
+    var matrixKeys = [
+      { key: 'wte', label: 'wte', desc: '토큰 임베딩' },
+      { key: 'wpe', label: 'wpe', desc: '위치 임베딩' },
+      { key: 'layer0.attn_wq', label: 'attn_wq', desc: 'Query 가중치' },
+      { key: 'layer0.attn_wk', label: 'attn_wk', desc: 'Key 가중치' },
+      { key: 'layer0.attn_wv', label: 'attn_wv', desc: 'Value 가중치' },
+      { key: 'layer0.attn_wo', label: 'attn_wo', desc: 'Output 가중치' },
+      { key: 'layer0.mlp_fc1', label: 'mlp_fc1', desc: 'MLP Up (64x16)' },
+      { key: 'layer0.mlp_fc2', label: 'mlp_fc2', desc: 'MLP Down (16x64)' },
+      { key: 'lm_head', label: 'lm_head', desc: '언어 모델 헤드' }
+    ];
+    var currentMatrix = 'wte';
+
+    function buildMatrixSelector() {
+      var container = document.getElementById('matrix-selector');
+      container.innerHTML = '';
+      matrixKeys.forEach(function(mk) {
+        var btn = document.createElement('button');
+        btn.textContent = mk.label;
+        btn.title = mk.desc;
+        if (mk.key === currentMatrix) btn.className = 'active';
+        btn.addEventListener('click', function() {
+          currentMatrix = mk.key;
+          container.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          drawSelectedMatrix();
+          updateMatrixStats();
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function getMatrixData(key) {
+      var mat = W[key];
+      if (!mat) return null;
+      // mat is either 2D array or flat — always 2D for our weights
+      return mat;
+    }
+
+    function drawMatrixHeatmap(canvas, matrix, rowLabels, colLabels) {
+      if (!matrix || matrix.length === 0) return;
+      var rows = matrix.length;
+      var cols = matrix[0].length;
+
+      var size = getCanvasSize(canvas);
+      var ctx = setupCanvas(canvas, size.w, size.h);
+      var w = size.w, h = size.h;
+
+      var labelW = 36;
+      var labelH = 20;
+      var availW = w - labelW - 8;
+      var availH = h - labelH - 8;
+      var cellW = Math.max(1, Math.floor(availW / cols));
+      var cellH = Math.max(1, Math.floor(availH / rows));
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Find min/max
+      var minVal = Infinity, maxVal = -Infinity;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          var v = matrix[r][c];
+          if (v < minVal) minVal = v;
+          if (v > maxVal) maxVal = v;
+        }
+      }
+      var absMax = Math.max(Math.abs(minVal), Math.abs(maxVal)) || 1;
+
+      // Row labels (show subset if too many)
+      ctx.font = '9px monospace';
+      ctx.fillStyle = '#8b949e';
+      ctx.textAlign = 'right';
+      var labelStep = Math.max(1, Math.floor(rows / 15));
+      for (var r = 0; r < rows; r += labelStep) {
+        var label = rowLabels ? rowLabels[r] : r.toString();
+        var cy = labelH + r * cellH + cellH / 2 + 3;
+        if (cy < h) ctx.fillText(label, labelW - 4, cy);
+      }
+
+      // Col labels
+      ctx.textAlign = 'center';
+      var colStep = Math.max(1, Math.floor(cols / 20));
+      for (var c = 0; c < cols; c += colStep) {
+        var label = colLabels ? colLabels[c] : c.toString();
+        ctx.fillText(label, labelW + c * cellW + cellW / 2, labelH - 4);
+      }
+
+      // Draw cells
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          var v = matrix[r][c];
+          var t = v / absMax; // -1 to 1
+          var red, green, blue;
+          if (t >= 0) {
+            // black to orange
+            red = Math.round(t * 249);
+            green = Math.round(t * 115);
+            blue = Math.round(t * 22);
+          } else {
+            // black to blue
+            var at = -t;
+            red = Math.round(at * 59);
+            green = Math.round(at * 130);
+            blue = Math.round(at * 246);
+          }
+          ctx.fillStyle = 'rgb(' + red + ',' + green + ',' + blue + ')';
+          ctx.fillRect(labelW + c * cellW, labelH + r * cellH, Math.max(cellW - 0.5, 1), Math.max(cellH - 0.5, 1));
+        }
+      }
+    }
+
+    function drawSelectedMatrix() {
+      var canvas = document.getElementById('matrix-canvas');
+      var mat = getMatrixData(currentMatrix);
+      if (!mat) return;
+
+      var rowLabels = null;
+      var colLabels = null;
+      if (currentMatrix === 'wte' || currentMatrix === 'lm_head') {
+        rowLabels = V.map(function(ch, i) { return i === BOS ? 'B' : ch; });
+      }
+      drawMatrixHeatmap(canvas, mat, rowLabels, colLabels);
+    }
+
+    function updateMatrixStats() {
+      var statsEl = document.getElementById('matrix-stats');
+      var mat = getMatrixData(currentMatrix);
+      if (!mat) { statsEl.innerHTML = '데이터 없음'; return; }
+
+      var rows = mat.length;
+      var cols = mat[0].length;
+      var total = rows * cols;
+      var minVal = Infinity, maxVal = -Infinity, sum = 0, sumSq = 0;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          var v = mat[r][c];
+          if (v < minVal) minVal = v;
+          if (v > maxVal) maxVal = v;
+          sum += v;
+          sumSq += v * v;
+        }
+      }
+      var mean = sum / total;
+      var variance = sumSq / total - mean * mean;
+      var std = Math.sqrt(Math.max(0, variance));
+
+      var mk = matrixKeys.filter(function(m) { return m.key === currentMatrix; })[0];
+      var desc = mk ? mk.desc : '';
+
+      statsEl.innerHTML =
+        '<div style="font-weight:600;color:var(--accent-purple);margin-bottom:8px;font-size:0.95rem;">' + currentMatrix + '</div>' +
+        '<div style="color:var(--text-secondary);font-size:0.78rem;margin-bottom:12px;">' + desc + '</div>' +
+        '<div><span class="ms-label">Shape:</span> <span class="ms-value">[' + rows + ' x ' + cols + ']</span></div>' +
+        '<div><span class="ms-label">파라미터:</span> <span class="ms-value">' + total + '</span></div>' +
+        '<div><span class="ms-label">최솟값:</span> <span class="ms-value">' + minVal.toFixed(4) + '</span></div>' +
+        '<div><span class="ms-label">최댓값:</span> <span class="ms-value">' + maxVal.toFixed(4) + '</span></div>' +
+        '<div><span class="ms-label">평균:</span> <span class="ms-value">' + mean.toFixed(4) + '</span></div>' +
+        '<div><span class="ms-label">표준편차:</span> <span class="ms-value">' + std.toFixed(4) + '</span></div>';
+    }
+
+    function cosineSimilarity(a, b) {
+      var dot = 0, normA = 0, normB = 0;
+      for (var i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+      }
+      var denom = Math.sqrt(normA) * Math.sqrt(normB);
+      return denom > 0 ? dot / denom : 0;
+    }
+
+    function drawSimilarityMatrix() {
+      var canvas = document.getElementById('similarity-canvas');
+      var wte = W.wte;
+      if (!wte) return;
+      var n = wte.length; // 27
+
+      // Compute cosine similarity matrix
+      var simMatrix = [];
+      for (var i = 0; i < n; i++) {
+        simMatrix[i] = [];
+        for (var j = 0; j < n; j++) {
+          simMatrix[i][j] = cosineSimilarity(wte[i], wte[j]);
+        }
+      }
+
+      var labels = V.map(function(ch, i) { return i === BOS ? 'B' : ch; });
+      var size = getCanvasSize(canvas);
+      var ctx = setupCanvas(canvas, size.w, size.h);
+      var w = size.w, h = size.h;
+
+      var labelW = 28;
+      var labelH = 20;
+      var availW = w - labelW - 8;
+      var availH = h - labelH - 8;
+      var cellSize = Math.min(Math.floor(availW / n), Math.floor(availH / n));
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Labels
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#8b949e';
+      for (var i = 0; i < n; i++) {
+        ctx.textAlign = 'center';
+        ctx.fillText(labels[i], labelW + i * cellSize + cellSize / 2, labelH - 4);
+        ctx.textAlign = 'right';
+        ctx.fillText(labels[i], labelW - 4, labelH + i * cellSize + cellSize / 2 + 3);
+      }
+
+      // Cells
+      for (var i = 0; i < n; i++) {
+        for (var j = 0; j < n; j++) {
+          var v = simMatrix[i][j]; // -1 to 1
+          var t = (v + 1) / 2; // 0 to 1
+          var red = Math.round(13 + t * (240 - 13));
+          var green = Math.round(17 + t * (200 - 17));
+          var blue = Math.round(23 + t * (80 - 23));
+          ctx.fillStyle = 'rgb(' + red + ',' + green + ',' + blue + ')';
+          ctx.fillRect(labelW + j * cellSize, labelH + i * cellSize, Math.max(cellSize - 1, 1), Math.max(cellSize - 1, 1));
+        }
+      }
+    }
+
+    function initInternals() {
+      if (!internalsInitialized) {
+        buildMatrixSelector();
+        internalsInitialized = true;
+      }
+      drawSelectedMatrix();
+      updateMatrixStats();
+      drawSimilarityMatrix();
+    }
+
+    // ------------------------------------------------------------------
+    // Tab 6: 순전파 파이프라인 (Pipeline)
+    // ------------------------------------------------------------------
+    var pipelineInitialized = false;
+    var pipelineState = {
+      currentStep: -1,
+      steps: [],
+      tokenId: 0,
+      posId: 0
+    };
+
+    var pipelineStepDefs = [
+      { name: '입력 토큰', dim: '[1]' },
+      { name: '토큰 임베딩 (wte)', dim: '[16]' },
+      { name: '+ 위치 임베딩 (wpe)', dim: '[16]' },
+      { name: 'RMSNorm (초기)', dim: '[16]' },
+      { name: 'RMSNorm (어텐션 전)', dim: '[16]' },
+      { name: 'Q = x @ Wq', dim: '[16]' },
+      { name: 'K = x @ Wk', dim: '[16]' },
+      { name: 'V = x @ Wv', dim: '[16]' },
+      { name: '어텐션 점수 (Q·K^T/√d)', dim: '[4] x 4 heads' },
+      { name: 'Softmax(어텐션 점수)', dim: '[4] x 4 heads' },
+      { name: '어텐션 출력 (V 가중합)', dim: '[16]' },
+      { name: '출력 프로젝션 + 잔차', dim: '[16]' },
+      { name: 'RMSNorm (MLP 전)', dim: '[16]' },
+      { name: 'MLP Up + ReLU', dim: '[64]' },
+      { name: 'MLP Down + 잔차', dim: '[16]' },
+      { name: 'Logits (lm_head)', dim: '[27]' },
+      { name: 'Softmax → 확률', dim: '[27]' }
+    ];
+
+    function gptForwardDetailed(tokenId, posId, weights) {
+      var n_embd = CFG.n_embd;
+      var n_head = CFG.n_head;
+      var head_dim = CFG.head_dim;
+      var steps = [];
+
+      // Step 0: input token
+      steps.push({ values: [tokenId], label: V[tokenId] || tokenId.toString() });
+
+      // Step 1: token embedding
+      var tokEmb = weights.wte[tokenId].slice();
+      steps.push({ values: tokEmb.slice() });
+
+      // Step 2: + position embedding
+      var x = new Array(n_embd);
+      for (var i = 0; i < n_embd; i++) x[i] = tokEmb[i] + weights.wpe[posId][i];
+      steps.push({ values: x.slice() });
+
+      // Step 3: initial rmsnorm
+      x = rmsnorm(x);
+      steps.push({ values: x.slice() });
+
+      // Step 4: rmsnorm before attention (with residual save)
+      var xResidual = x.slice();
+      var xNormed = rmsnorm(x);
+      steps.push({ values: xNormed.slice() });
+
+      // Step 5: Q projection
+      var q = linear(xNormed, weights['layer0.attn_wq']);
+      steps.push({ values: q.slice() });
+
+      // Step 6: K projection
+      var k = linear(xNormed, weights['layer0.attn_wk']);
+      steps.push({ values: k.slice() });
+
+      // Step 7: V projection
+      var v = linear(xNormed, weights['layer0.attn_wv']);
+      steps.push({ values: v.slice() });
+
+      // Step 8: attention scores per head
+      var attnScores = [];
+      var invSqrt = 1 / Math.sqrt(head_dim);
+      for (var h = 0; h < n_head; h++) {
+        var hs = h * head_dim;
+        var qH = q.slice(hs, hs + head_dim);
+        var kH = k.slice(hs, hs + head_dim);
+        var dot = 0;
+        for (var j = 0; j < head_dim; j++) dot += qH[j] * kH[j];
+        attnScores.push(dot * invSqrt);
+      }
+      steps.push({ values: attnScores.slice(), isMultiHead: true });
+
+      // Step 9: softmax of attention scores per head (single position = trivial softmax = [1.0] each)
+      var attnWeights = attnScores.map(function() { return 1.0; });
+      steps.push({ values: attnWeights.slice(), isMultiHead: true });
+
+      // Step 10: attention output (weighted sum of V = just V since single position)
+      var xAttn = [];
+      for (var h = 0; h < n_head; h++) {
+        var hs = h * head_dim;
+        for (var j = 0; j < head_dim; j++) {
+          xAttn.push(v[hs + j] * attnWeights[h]);
+        }
+      }
+      steps.push({ values: xAttn.slice() });
+
+      // Step 11: output projection + residual
+      var xOut = linear(xAttn, weights['layer0.attn_wo']);
+      for (var i = 0; i < n_embd; i++) xOut[i] += xResidual[i];
+      steps.push({ values: xOut.slice() });
+
+      // Step 12: rmsnorm before MLP
+      var xRes2 = xOut.slice();
+      var xNorm2 = rmsnorm(xOut);
+      steps.push({ values: xNorm2.slice() });
+
+      // Step 13: MLP up + ReLU
+      var mlpUp = linear(xNorm2, weights['layer0.mlp_fc1']);
+      for (var i = 0; i < mlpUp.length; i++) mlpUp[i] = Math.max(0, mlpUp[i]);
+      steps.push({ values: mlpUp.slice() });
+
+      // Step 14: MLP down + residual
+      var mlpDown = linear(mlpUp, weights['layer0.mlp_fc2']);
+      for (var i = 0; i < n_embd; i++) mlpDown[i] += xRes2[i];
+      steps.push({ values: mlpDown.slice() });
+
+      // Step 15: logits
+      var logits = linear(mlpDown, weights.lm_head);
+      steps.push({ values: logits.slice() });
+
+      // Step 16: softmax probabilities
+      var probs = softmax(logits);
+      steps.push({ values: probs.slice() });
+
+      return steps;
+    }
+
+    function renderVector(container, values, labels, compact) {
+      container.innerHTML = '';
+      var wrap = document.createElement('div');
+      wrap.className = 'vector-display';
+
+      var absMax = 0;
+      for (var i = 0; i < values.length; i++) {
+        var av = Math.abs(values[i]);
+        if (av > absMax) absMax = av;
+      }
+      if (absMax === 0) absMax = 1;
+
+      for (var i = 0; i < values.length; i++) {
+        var cell = document.createElement('div');
+        cell.className = 'vector-cell' + (compact ? ' compact' : '');
+        var v = values[i];
+        var t = v / absMax; // -1 to 1
+        var red, green, blue;
+        if (t >= 0) {
+          red = Math.round(30 + t * 219);
+          green = Math.round(30 + t * 85);
+          blue = Math.round(30 + t * 0);
+        } else {
+          var at = -t;
+          red = Math.round(30 + at * 29);
+          green = Math.round(30 + at * 100);
+          blue = Math.round(30 + at * 216);
+        }
+        cell.style.background = 'rgb(' + red + ',' + green + ',' + blue + ')';
+        cell.style.color = (Math.abs(t) > 0.5) ? '#fff' : '#aaa';
+        if (!compact) {
+          cell.textContent = v.toFixed(1);
+        }
+        var label = labels ? labels[i] : i.toString();
+        cell.title = label + ': ' + v.toFixed(6);
+        wrap.appendChild(cell);
+      }
+      container.appendChild(wrap);
+    }
+
+    function buildPipelineSteps() {
+      var container = document.getElementById('pipeline-steps');
+      container.innerHTML = '';
+      for (var i = 0; i < pipelineStepDefs.length; i++) {
+        var step = document.createElement('div');
+        step.className = 'pipeline-step pending';
+        step.id = 'pipe-step-' + i;
+
+        var header = document.createElement('div');
+        header.className = 'ps-header';
+        header.innerHTML = '<span class="ps-num">' + i + '</span>' +
+          '<span>' + pipelineStepDefs[i].name + '</span>' +
+          '<span class="ps-dim">' + pipelineStepDefs[i].dim + '</span>';
+        step.appendChild(header);
+
+        var body = document.createElement('div');
+        body.className = 'ps-body';
+        body.id = 'pipe-body-' + i;
+        step.appendChild(body);
+
+        container.appendChild(step);
+      }
+    }
+
+    function buildPipeTokenSelect() {
+      var sel = document.getElementById('pipe-token');
+      sel.innerHTML = '';
+      for (var i = 0; i < V.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = (i === BOS ? 'BOS' : V[i]) + ' (' + i + ')';
+        sel.appendChild(opt);
+      }
+    }
+
+    function pipelineRunAll() {
+      var tokenId = parseInt(document.getElementById('pipe-token').value) || 0;
+      var posId = parseInt(document.getElementById('pipe-pos').value) || 0;
+      posId = Math.max(0, Math.min(15, posId));
+
+      pipelineState.tokenId = tokenId;
+      pipelineState.posId = posId;
+      pipelineState.steps = gptForwardDetailed(tokenId, posId, W);
+      pipelineState.currentStep = pipelineState.steps.length - 1;
+      renderPipelineState();
+    }
+
+    function pipelineStepForward() {
+      if (pipelineState.steps.length === 0) {
+        var tokenId = parseInt(document.getElementById('pipe-token').value) || 0;
+        var posId = parseInt(document.getElementById('pipe-pos').value) || 0;
+        posId = Math.max(0, Math.min(15, posId));
+        pipelineState.tokenId = tokenId;
+        pipelineState.posId = posId;
+        pipelineState.steps = gptForwardDetailed(tokenId, posId, W);
+        pipelineState.currentStep = -1;
+      }
+      if (pipelineState.currentStep < pipelineState.steps.length - 1) {
+        pipelineState.currentStep++;
+      }
+      renderPipelineState();
+    }
+
+    function pipelineReset() {
+      pipelineState.currentStep = -1;
+      pipelineState.steps = [];
+      buildPipelineSteps();
+      document.getElementById('pipe-step-label').textContent = '단계: 0 / ' + pipelineStepDefs.length;
+    }
+
+    function renderPipelineState() {
+      var cs = pipelineState.currentStep;
+      document.getElementById('pipe-step-label').textContent = '단계: ' + (cs + 1) + ' / ' + pipelineStepDefs.length;
+
+      for (var i = 0; i < pipelineStepDefs.length; i++) {
+        var el = document.getElementById('pipe-step-' + i);
+        var body = document.getElementById('pipe-body-' + i);
+        if (!el) continue;
+
+        el.className = 'pipeline-step';
+        if (i < cs) {
+          el.classList.add('completed');
+        } else if (i === cs) {
+          el.classList.add('active');
+        } else {
+          el.classList.add('pending');
+        }
+
+        if (i <= cs && pipelineState.steps[i]) {
+          var stepData = pipelineState.steps[i];
+          var vals = stepData.values;
+          if (i === 0) {
+            // Just show token info
+            var tokLabel = pipelineState.tokenId === BOS ? 'BOS' : V[pipelineState.tokenId];
+            body.innerHTML = '<div style="font-family:var(--font-mono);font-size:0.85rem;color:var(--accent-blue);padding:4px 0;">토큰: <strong>' + tokLabel + '</strong> (id=' + pipelineState.tokenId + '), 위치: ' + pipelineState.posId + '</div>';
+          } else if (i === pipelineStepDefs.length - 1) {
+            // Probabilities — show top 5
+            var items = [];
+            for (var j = 0; j < vals.length; j++) {
+              items.push({ id: j, prob: vals[j] });
+            }
+            items.sort(function(a, b) { return b.prob - a.prob; });
+            var html = '<div style="font-family:var(--font-mono);font-size:0.78rem;margin-top:4px;">';
+            html += '<span style="color:var(--text-secondary);">상위 5개:</span> ';
+            for (var j = 0; j < Math.min(5, items.length); j++) {
+              var label = items[j].id === BOS ? 'BOS' : V[items[j].id];
+              html += '<span style="color:var(--accent-green);">' + label + '</span>=' + (items[j].prob * 100).toFixed(1) + '% ';
+            }
+            html += '</div>';
+            body.innerHTML = html;
+            renderVector(body, vals, V.map(function(ch, idx) { return idx === BOS ? 'BOS' : ch; }), false);
+          } else {
+            // Vector display
+            var isCompact = vals.length > 20;
+            var vecLabels = null;
+            if (i === pipelineStepDefs.length - 2) {
+              // Logits
+              vecLabels = V.map(function(ch, idx) { return idx === BOS ? 'BOS' : ch; });
+            }
+            renderVector(body, vals, vecLabels, isCompact);
+          }
+        } else {
+          body.innerHTML = '';
+        }
+      }
+    }
+
+    function initPipeline() {
+      if (!pipelineInitialized) {
+        buildPipeTokenSelect();
+        buildPipelineSteps();
+
+        document.getElementById('pipe-run').addEventListener('click', pipelineRunAll);
+        document.getElementById('pipe-step').addEventListener('click', pipelineStepForward);
+        document.getElementById('pipe-reset').addEventListener('click', pipelineReset);
+
+        pipelineInitialized = true;
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Tab 7: 실험실 Lab
+    // ------------------------------------------------------------------
+    var labInitialized = false;
+
+    function generateName(temperature, seed) {
+      var rng = mulberry32(seed);
+      var keys = [];
+      var vals = [];
+      for (var li = 0; li < CFG.n_layer; li++) {
+        keys.push([]);
+        vals.push([]);
+      }
+
+      var token = BOS;
+      var name = '';
+      for (var pos = 0; pos < CFG.block_size; pos++) {
+        var result = gptForward(token, pos, keys, vals, W);
+        var sampled = sampleWithTemperature(result.logits, temperature, rng);
+        if (sampled.tokenId === BOS) break;
+        name += V[sampled.tokenId];
+        token = sampled.tokenId;
+      }
+      return name;
+    }
+
+    function runTemperatureExperiment() {
+      var container = document.getElementById('temp-compare');
+      container.innerHTML = '';
+
+      // Run forward for context "BOS→k→a": we need logits after feeding the sequence
+      var temps = [0.1, 0.5, 1.0, 2.0];
+      var colors = ['var(--accent-blue)', 'var(--accent-green)', 'var(--accent-orange)', 'var(--accent-red)'];
+
+      // Get logits by running through the sequence BOS, k, a
+      var contextTokens = [BOS, charToId['k'], charToId['a']];
+      var keys = [];
+      var valsArr = [];
+      for (var li = 0; li < CFG.n_layer; li++) {
+        keys.push([]);
+        valsArr.push([]);
+      }
+      var lastLogits = null;
+      for (var p = 0; p < contextTokens.length; p++) {
+        var result = gptForward(contextTokens[p], p, keys, valsArr, W);
+        lastLogits = result.logits;
+      }
+
+      if (!lastLogits) return;
+
+      temps.forEach(function(temp, ti) {
+        var scaled = new Array(lastLogits.length);
+        for (var i = 0; i < lastLogits.length; i++) scaled[i] = lastLogits[i] / temp;
+        var probs = softmax(scaled);
+
+        // Sort by probability, take top 10
+        var items = [];
+        for (var i = 0; i < probs.length; i++) {
+          items.push({ id: i, prob: probs[i], label: i === BOS ? 'BOS' : V[i] });
+        }
+        items.sort(function(a, b) { return b.prob - a.prob; });
+        var top10 = items.slice(0, 10);
+
+        var col = document.createElement('div');
+        col.className = 'tc-col';
+
+        var titleColor = colors[ti];
+        var html = '<div class="tc-title" style="color:' + titleColor + '">T = ' + temp + '</div>';
+
+        var maxProb = top10[0].prob;
+        top10.forEach(function(item) {
+          var barW = maxProb > 0 ? (item.prob / maxProb * 100) : 0;
+          var pct = (item.prob * 100).toFixed(1);
+          html += '<div class="tc-bar-row">';
+          html += '<div class="tc-label">' + item.label + '</div>';
+          html += '<div class="tc-track"><div class="tc-fill" style="width:' + barW + '%;background:' + titleColor + '"></div></div>';
+          html += '<div class="tc-pct">' + pct + '%</div>';
+          html += '</div>';
+        });
+
+        col.innerHTML = html;
+        container.appendChild(col);
+      });
+    }
+
+    function runMultiSampling() {
+      var temp = parseFloat(document.getElementById('lab-temp').value) || 0.8;
+      var count = parseInt(document.getElementById('lab-count').value) || 20;
+      count = Math.max(5, Math.min(50, count));
+
+      var container = document.getElementById('lab-samples');
+      container.innerHTML = '';
+
+      var nameColors = [
+        'var(--accent-blue)', 'var(--accent-green)', 'var(--accent-orange)',
+        'var(--accent-purple)', 'var(--accent-red)'
+      ];
+
+      for (var i = 1; i <= count; i++) {
+        var name = generateName(temp, i);
+        var item = document.createElement('div');
+        item.className = 'sample-item';
+        var color = nameColors[i % nameColors.length];
+        item.innerHTML = '<div style="color:' + color + '">' + (name || '(empty)') + '</div><div class="si-seed">seed=' + i + '</div>';
+        container.appendChild(item);
+      }
+    }
+
+    function runAttentionExplorer() {
+      var input = document.getElementById('lab-attn-input').value.toLowerCase().replace(/[^a-z]/g, '');
+      if (input.length === 0) return;
+
+      var resultEl = document.getElementById('lab-attn-result');
+      resultEl.innerHTML = '';
+
+      // Tokenize
+      var tokens = [BOS];
+      for (var i = 0; i < input.length; i++) {
+        if (charToId.hasOwnProperty(input[i])) {
+          tokens.push(charToId[input[i]]);
+        }
+      }
+
+      // Run forward pass collecting attention per position
+      var keys = [];
+      var valsArr = [];
+      for (var li = 0; li < CFG.n_layer; li++) {
+        keys.push([]);
+        valsArr.push([]);
+      }
+
+      var allAttn = []; // allAttn[pos] = [head0, head1, ...]
+      for (var p = 0; p < tokens.length; p++) {
+        var result = gptForward(tokens[p], p, keys, valsArr, W);
+        allAttn.push(result.attentionWeights);
+      }
+
+      // Build per-head attention matrices
+      var nHeads = CFG.n_head;
+
+      var titleEl = document.createElement('div');
+      titleEl.style.cssText = 'font-family:var(--font-mono);font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;';
+      var tokStr = tokens.map(function(t) { return t === BOS ? 'BOS' : V[t]; }).join(' → ');
+      titleEl.textContent = '시퀀스: ' + tokStr + ' (' + tokens.length + ' 토큰)';
+      resultEl.appendChild(titleEl);
+
+      var attnGrid = document.createElement('div');
+      attnGrid.className = 'attn-grid';
+      resultEl.appendChild(attnGrid);
+
+      for (var h = 0; h < nHeads; h++) {
+        var headData = [];
+        for (var p = 0; p < allAttn.length; p++) {
+          if (allAttn[p] && allAttn[p][h]) {
+            headData.push(allAttn[p][h]);
+          }
+        }
+
+        var wrap = document.createElement('div');
+        var label = document.createElement('div');
+        label.className = 'attn-head-label';
+        label.textContent = 'Head ' + h + ' — 어텐션 가중치 (softmax 후)';
+        var canvas = document.createElement('canvas');
+        wrap.appendChild(label);
+        wrap.appendChild(canvas);
+        attnGrid.appendChild(wrap);
+        drawAttnHeatmap(canvas, headData, tokens, h);
+      }
+    }
+
+    function initLab() {
+      if (!labInitialized) {
+        document.getElementById('lab-generate').addEventListener('click', runMultiSampling);
+        document.getElementById('lab-attn-run').addEventListener('click', runAttentionExplorer);
+        document.getElementById('lab-attn-input').addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') runAttentionExplorer();
+        });
+        labInitialized = true;
+      }
+      runTemperatureExperiment();
+    }
+
+    // ------------------------------------------------------------------
+    // Hash routing (after all tab init code so variables are defined)
+    // ------------------------------------------------------------------
+    var validTabs = ['tokenizer', 'training', 'inference', 'backprop', 'internals', 'pipeline', 'lab'];
+    var hash = location.hash.replace('#', '');
+    if (validTabs.indexOf(hash) !== -1 && hash !== 'tokenizer') {
+      switchTab(hash);
+    }
+    window.addEventListener('hashchange', function() {
+      var h = location.hash.replace('#', '');
+      if (validTabs.indexOf(h) !== -1) switchTab(h);
+    });
+
+    // ------------------------------------------------------------------
     // Window resize handler
     // ------------------------------------------------------------------
     var resizeTimer;
@@ -2101,6 +3139,9 @@ python microgpt.py<br><br>
       resizeTimer = setTimeout(function() {
         if (currentTab === 'training') { drawLossChart(); drawLRChart(); }
         if (currentTab === 'backprop') { drawBPGraph(); }
+        if (currentTab === 'internals') { initInternals(); }
+        if (currentTab === 'pipeline') { initPipeline(); }
+        if (currentTab === 'lab') { initLab(); }
       }, 150);
     });
 
