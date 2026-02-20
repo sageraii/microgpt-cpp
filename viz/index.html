@@ -789,6 +789,43 @@
       outline: none;
     }
     select:focus { border-color: var(--accent-blue); }
+
+    /* Training animation */
+    .snapshot-slider { width: 100%; }
+    .snapshot-info-anim { display: flex; gap: 16px; margin: 12px 0; font-size: 0.85rem; }
+    .snapshot-info-anim span { color: var(--text-secondary); }
+    .snapshot-info-anim strong { color: var(--accent-blue); }
+    .attn-grid-small { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .attn-grid-small canvas { width: 100%; height: 200px; background: var(--surface); border-radius: 8px; }
+
+    /* Embedding 2D */
+    .embedding-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 0.78rem; }
+    .embedding-legend span { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    /* Interactive backprop */
+    .bp-step { padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
+    .bp-step.active { border-color: var(--accent-green); }
+    .bp-step.completed { opacity: 0.7; }
+    .bp-step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .bp-step-num { background: var(--accent-purple); color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+    .bp-values { font-family: var(--font-mono); font-size: 0.78rem; }
+    .bp-gradient { color: var(--accent-red); }
+    .bp-forward-val { color: var(--accent-blue); }
+
+    /* Loss landscape */
+    .landscape-info { text-align: center; margin-top: 8px; font-size: 0.78rem; color: var(--text-secondary); }
+    .landscape-mark { font-size: 0.8rem; }
+
+    /* Beam search */
+    .beam-tree { overflow-x: auto; padding: 16px 0; }
+    .beam-level { display: flex; justify-content: center; gap: 4px; margin: 4px 0; }
+    .beam-node { padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem; text-align: center; border: 1px solid var(--border); background: var(--surface); min-width: 60px; cursor: default; }
+    .beam-node.best { border-color: var(--accent-green); background: rgba(63,185,80,0.1); }
+    .beam-connector { text-align: center; color: var(--text-secondary); font-size: 0.7rem; }
+    .beam-prob { font-size: 0.7rem; color: var(--text-secondary); }
+    .beam-token { font-size: 0.95rem; font-weight: 600; }
+    .beam-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -913,6 +950,21 @@
         <div class="attn-grid" id="training-attn-grid"></div>
       </div>
 
+      <!-- Feature 4: Loss Landscape -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-purple)"></span>손실 경관 (Loss Landscape)</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">학습된 가중치 주변의 손실 변화를 2D 단면으로 시각화합니다. 전체 임베딩 행렬(27×16)을 두 랜덤 직교 방향으로 변형하여 손실 경관을 보여줍니다.</p>
+        <div class="canvas-wrap" style="height:500px;">
+          <canvas id="loss-landscape-canvas"></canvas>
+        </div>
+        <div class="landscape-info" id="landscape-info">계산 중...</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-family:var(--font-mono);font-size:0.72rem;color:var(--text-secondary);">
+          <span>낮은 손실</span>
+          <div style="flex:1;height:12px;border-radius:3px;background:linear-gradient(to right, #3b82f6, #22d3ee, #84cc16, #eab308, #f97316, #ef4444);"></div>
+          <span>높은 손실</span>
+        </div>
+      </div>
+
       <div class="doc-links">
         <div class="doc-links-title">자세히 알아보기</div>
         <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part1-python/ch03-why-learning-works.md" target="_blank">Ch03: 왜 학습이 되는가<span class="link-arrow">&rarr;</span></a>
@@ -1017,6 +1069,22 @@
         </div>
       </div>
 
+      <!-- Feature 3: Interactive Backprop with real model -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-purple)"></span>역전파 실습: 숫자로 따라가기</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">실제 모델 가중치를 사용한 단일 토큰의 순전파 → 손실 계산 → 역전파 과정입니다.<br><code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:0.78rem;color:var(--accent-orange);">loss = -log(softmax(lm_head @ embedding)[target])</code></p>
+        <div class="controls-bar">
+          <label>입력 토큰: <select id="ibp-input-token"></select></label>
+          <label>목표 토큰: <select id="ibp-target-token"></select></label>
+          <button class="btn btn-green" id="ibp-forward-btn">순전파</button>
+          <button class="btn btn-red" id="ibp-backward-btn">역전파</button>
+          <button class="btn btn-blue" id="ibp-step-btn">다음 단계</button>
+          <button class="btn" id="ibp-reset-btn">초기화</button>
+          <span id="ibp-step-label" style="color:var(--text-secondary);font-size:0.85rem;margin-left:8px;">단계: 0 / 5</span>
+        </div>
+        <div id="ibp-steps-container"></div>
+      </div>
+
       <div class="doc-links">
         <div class="doc-links-title">자세히 알아보기</div>
         <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part1-python/ch04-value-and-backprop.md" target="_blank">Ch04: Value와 역전파<span class="link-arrow">&rarr;</span></a>
@@ -1053,6 +1121,41 @@
         <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">각 토큰의 16차원 임베딩 벡터 간 코사인 유사도. 비슷한 문자는 밝게 표시됩니다.</p>
         <div class="canvas-wrap" style="height:420px;">
           <canvas id="similarity-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Feature 1: Training Progress Animation -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-orange)"></span>학습 과정: 어텐션 패턴 변화</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">학습이 진행되면서 어텐션 패턴이 어떻게 변화하는지 관찰합니다. 초기에는 균등 분포이지만, 학습이 진행되면서 특정 위치에 집중합니다.</p>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+          <input type="range" id="snapshot-anim-slider" class="snapshot-slider" min="0" max="6" value="0" step="1">
+          <button class="btn btn-blue" id="snapshot-autoplay" style="min-width:80px;">자동 재생</button>
+        </div>
+        <div class="snapshot-info-anim" id="snapshot-anim-info">
+          <span>Step: <strong id="sa-step">0</strong></span>
+          <span>Loss: <strong id="sa-loss">-</strong></span>
+          <span>이름: <strong id="sa-doc">-</strong></span>
+        </div>
+        <div class="attn-grid-small" id="snapshot-attn-grid">
+          <canvas id="sa-head0"></canvas>
+          <canvas id="sa-head1"></canvas>
+          <canvas id="sa-head2"></canvas>
+          <canvas id="sa-head3"></canvas>
+        </div>
+      </div>
+
+      <!-- Feature 2: Embedding 2D PCA -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>임베딩 공간: 2D 투영 (PCA)</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">27개 토큰의 16차원 임베딩 벡터를 PCA로 2차원에 투영한 시각화입니다. 비슷한 역할의 문자가 가까이 위치합니다.</p>
+        <div class="canvas-wrap" style="height:500px;">
+          <canvas id="embedding-2d-canvas"></canvas>
+        </div>
+        <div class="embedding-legend">
+          <span><span class="legend-dot" style="background:#f97316;"></span> 모음 (a,e,i,o,u)</span>
+          <span><span class="legend-dot" style="background:#58a6ff;"></span> 자음</span>
+          <span><span class="legend-dot" style="background:#bc8cff;"></span> BOS</span>
         </div>
       </div>
 
@@ -1117,6 +1220,29 @@
           <button class="btn btn-blue" id="lab-attn-run">분석</button>
         </div>
         <div id="lab-attn-result"></div>
+      </div>
+
+      <!-- Feature 5: Beam Search Tree -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-purple)"></span>실험 4: 빔 서치 탐색기</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">빔 서치는 각 단계에서 상위 k개 후보를 유지하며 탐색합니다. Greedy(k=1)와 비교하여 더 나은 시퀀스를 찾을 수 있습니다.</p>
+        <div class="beam-controls">
+          <label>시작 텍스트: <input type="text" id="beam-start" placeholder="예: ka" maxlength="8" autocomplete="off" spellcheck="false" value="ka" style="width:80px;"></label>
+          <label>빔 폭: <select id="beam-width">
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select></label>
+          <label>최대 깊이: <select id="beam-depth">
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select></label>
+          <button class="btn btn-green" id="beam-search-btn">탐색</button>
+        </div>
+        <div class="beam-tree" id="beam-tree-container"></div>
       </div>
 
       <div class="doc-links">
@@ -1185,8 +1311,19 @@ python microgpt.py<br><br>
       document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
       document.getElementById('tab-' + tab).classList.add('active');
       currentTab = tab;
-      if (tab === 'training') { drawLossChart(); drawLRChart(); }
-      if (tab === 'backprop') { drawBPGraph(); }
+      if (tab === 'training') {
+        drawLossChart(); drawLRChart();
+        if (!lossLandscapeInitialized) {
+          lossLandscapeInitialized = true;
+          setTimeout(function() { generateLossLandscape(); drawLossLandscape(); }, 100);
+        } else if (lossLandscapeGenerated) {
+          drawLossLandscape();
+        }
+      }
+      if (tab === 'backprop') {
+        drawBPGraph();
+        if (!ibpInitialized) { initInteractiveBackprop(); ibpInitialized = true; }
+      }
       if (tab === 'internals') { initInternals(); }
       if (tab === 'pipeline') { initPipeline(); }
       if (tab === 'lab') { initLab(); }
@@ -3118,6 +3255,1046 @@ python microgpt.py<br><br>
     }
 
     // ------------------------------------------------------------------
+    // Feature 1: Training Progress Animation (Tab 5)
+    // ------------------------------------------------------------------
+    var snapshotAnimTimer = null;
+    var snapshotAnimPlaying = false;
+
+    function drawSnapshotAttention(snapshotIndex) {
+      if (!T || !T.snapshots || snapshotIndex >= T.snapshots.length) return;
+      var snap = T.snapshots[snapshotIndex];
+      if (!snap) return;
+
+      document.getElementById('sa-step').textContent = snap.step;
+      document.getElementById('sa-loss').textContent = snap.loss !== undefined ? snap.loss.toFixed(4) : '-';
+      document.getElementById('sa-doc').textContent = snap.doc || '-';
+
+      var tokens = snap.tokens;
+      var attn = snap.attention;
+      if (!attn || attn.length === 0) return;
+
+      for (var h = 0; h < 4; h++) {
+        var canvas = document.getElementById('sa-head' + h);
+        if (!canvas || !attn[h]) continue;
+
+        var headData = attn[h]; // headData[queryPos][keyPos]
+        var T_len = headData.length;
+        if (T_len === 0) continue;
+
+        var size = getCanvasSize(canvas);
+        var ctx = setupCanvas(canvas, size.w, size.h);
+        var w = size.w, hh = size.h;
+
+        var labelW = 28;
+        var labelH = 24;
+        var titleH = 18;
+        var availW = w - labelW - 4;
+        var availH = hh - labelH - titleH - 4;
+        var cellSize = Math.min(Math.floor(availW / T_len), Math.floor(availH / T_len));
+        cellSize = Math.max(cellSize, 4);
+
+        ctx.clearRect(0, 0, w, hh);
+
+        // Title
+        ctx.font = 'bold 11px ' + getComputedStyle(document.body).getPropertyValue('--font-sans');
+        ctx.fillStyle = '#8b949e';
+        ctx.textAlign = 'left';
+        ctx.fillText('Head ' + h, 4, 13);
+
+        var offY = titleH;
+
+        // Axis labels
+        ctx.font = '9px monospace';
+        ctx.fillStyle = '#8b949e';
+        for (var i = 0; i < T_len; i++) {
+          var display = tokens && tokens[i] !== undefined ? (tokens[i] === BOS ? 'B' : V[tokens[i]]) : i.toString();
+          ctx.textAlign = 'center';
+          ctx.fillText(display, labelW + i * cellSize + cellSize / 2, offY + labelH - 6);
+          ctx.textAlign = 'right';
+          ctx.fillText(display, labelW - 3, offY + labelH + i * cellSize + cellSize / 2 + 3);
+        }
+
+        // Cells
+        for (var q = 0; q < T_len; q++) {
+          var row = headData[q];
+          if (!row) continue;
+          for (var k = 0; k < row.length; k++) {
+            var val = row[k];
+            var r = Math.round(13 + val * (240 - 13));
+            var g = Math.round(17 + val * (136 - 17));
+            var b = Math.round(23 + val * (62 - 23));
+            ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+            ctx.fillRect(labelW + k * cellSize, offY + labelH + q * cellSize, Math.max(cellSize - 1, 1), Math.max(cellSize - 1, 1));
+          }
+        }
+      }
+    }
+
+    function initSnapshotAnimation() {
+      var slider = document.getElementById('snapshot-anim-slider');
+      var playBtn = document.getElementById('snapshot-autoplay');
+
+      slider.addEventListener('input', function() {
+        drawSnapshotAttention(parseInt(slider.value));
+      });
+
+      playBtn.addEventListener('click', function() {
+        if (snapshotAnimPlaying) {
+          clearInterval(snapshotAnimTimer);
+          snapshotAnimTimer = null;
+          snapshotAnimPlaying = false;
+          playBtn.textContent = '자동 재생';
+          return;
+        }
+        snapshotAnimPlaying = true;
+        playBtn.textContent = '정지';
+        var idx = parseInt(slider.value);
+        snapshotAnimTimer = setInterval(function() {
+          idx++;
+          if (idx > 6) idx = 0;
+          slider.value = idx;
+          drawSnapshotAttention(idx);
+        }, 1200);
+      });
+
+      drawSnapshotAttention(0);
+    }
+
+    // ------------------------------------------------------------------
+    // Feature 2: Embedding 2D PCA (Tab 5)
+    // ------------------------------------------------------------------
+    function computePCA(matrix) {
+      // matrix: array of N vectors, each of dimension D
+      var N = matrix.length;
+      var D = matrix[0].length;
+
+      // Compute mean
+      var mean = new Array(D);
+      for (var j = 0; j < D; j++) {
+        var s = 0;
+        for (var i = 0; i < N; i++) s += matrix[i][j];
+        mean[j] = s / N;
+      }
+
+      // Center the data
+      var centered = [];
+      for (var i = 0; i < N; i++) {
+        var row = new Array(D);
+        for (var j = 0; j < D; j++) row[j] = matrix[i][j] - mean[j];
+        centered.push(row);
+      }
+
+      // Compute covariance matrix (DxD)
+      var cov = [];
+      for (var i = 0; i < D; i++) {
+        cov[i] = new Array(D);
+        for (var j = 0; j < D; j++) {
+          var s = 0;
+          for (var k = 0; k < N; k++) s += centered[k][i] * centered[k][j];
+          cov[i][j] = s / N;
+        }
+      }
+
+      // Power iteration to find top eigenvector
+      function powerIteration(mat, dim, deflatedMat) {
+        var v = new Array(dim);
+        var rng = mulberry32(12345);
+        for (var i = 0; i < dim; i++) v[i] = rng() - 0.5;
+
+        for (var iter = 0; iter < 100; iter++) {
+          var newV = new Array(dim);
+          for (var i = 0; i < dim; i++) {
+            var s = 0;
+            for (var j = 0; j < dim; j++) s += deflatedMat[i][j] * v[j];
+            newV[i] = s;
+          }
+          // Normalize
+          var norm = 0;
+          for (var i = 0; i < dim; i++) norm += newV[i] * newV[i];
+          norm = Math.sqrt(norm);
+          if (norm < 1e-10) break;
+          for (var i = 0; i < dim; i++) newV[i] /= norm;
+          v = newV;
+        }
+        // Compute eigenvalue
+        var mv = new Array(dim);
+        for (var i = 0; i < dim; i++) {
+          var s = 0;
+          for (var j = 0; j < dim; j++) s += deflatedMat[i][j] * v[j];
+          mv[i] = s;
+        }
+        var eigenvalue = 0;
+        for (var i = 0; i < dim; i++) eigenvalue += v[i] * mv[i];
+        return { vector: v, value: eigenvalue };
+      }
+
+      // First eigenvector
+      var e1 = powerIteration(cov, D, cov);
+
+      // Deflate: cov2 = cov - eigenvalue * v * v^T
+      var cov2 = [];
+      for (var i = 0; i < D; i++) {
+        cov2[i] = new Array(D);
+        for (var j = 0; j < D; j++) {
+          cov2[i][j] = cov[i][j] - e1.value * e1.vector[i] * e1.vector[j];
+        }
+      }
+
+      // Second eigenvector
+      var e2 = powerIteration(cov2, D, cov2);
+
+      // Project all points
+      var projected = [];
+      for (var i = 0; i < N; i++) {
+        var x = 0, y = 0;
+        for (var j = 0; j < D; j++) {
+          x += centered[i][j] * e1.vector[j];
+          y += centered[i][j] * e2.vector[j];
+        }
+        projected.push([x, y]);
+      }
+
+      return projected;
+    }
+
+    function drawEmbedding2D() {
+      var canvas = document.getElementById('embedding-2d-canvas');
+      var wte = W.wte;
+      if (!wte) return;
+
+      var projected = computePCA(wte);
+
+      var size = getCanvasSize(canvas);
+      var ctx = setupCanvas(canvas, size.w, size.h);
+      var w = size.w, h = size.h;
+
+      var pad = { top: 30, right: 30, bottom: 30, left: 40 };
+      var pw = w - pad.left - pad.right;
+      var ph = h - pad.top - pad.bottom;
+
+      // Find bounds
+      var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (var i = 0; i < projected.length; i++) {
+        if (projected[i][0] < minX) minX = projected[i][0];
+        if (projected[i][0] > maxX) maxX = projected[i][0];
+        if (projected[i][1] < minY) minY = projected[i][1];
+        if (projected[i][1] > maxY) maxY = projected[i][1];
+      }
+      var rangeX = maxX - minX || 1;
+      var rangeY = maxY - minY || 1;
+      // Add 10% padding
+      minX -= rangeX * 0.1; maxX += rangeX * 0.1;
+      minY -= rangeY * 0.1; maxY += rangeY * 0.1;
+      rangeX = maxX - minX;
+      rangeY = maxY - minY;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw grid
+      ctx.strokeStyle = 'rgba(48,54,61,0.3)';
+      ctx.lineWidth = 0.5;
+      for (var i = 0; i <= 4; i++) {
+        var gx = pad.left + (pw * i / 4);
+        ctx.beginPath(); ctx.moveTo(gx, pad.top); ctx.lineTo(gx, h - pad.bottom); ctx.stroke();
+        var gy = pad.top + (ph * i / 4);
+        ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(w - pad.right, gy); ctx.stroke();
+      }
+
+      // Axis labels
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#8b949e';
+      ctx.textAlign = 'center';
+      ctx.fillText('PC1', w / 2, h - 6);
+      ctx.save();
+      ctx.translate(12, h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('PC2', 0, 0);
+      ctx.restore();
+
+      var vowels = ['a', 'e', 'i', 'o', 'u'];
+
+      // Draw points
+      for (var i = 0; i < projected.length; i++) {
+        var px = pad.left + ((projected[i][0] - minX) / rangeX) * pw;
+        var py = pad.top + ((projected[i][1] - minY) / rangeY) * ph;
+
+        var label = i === BOS ? 'BOS' : V[i];
+        var isVowel = vowels.indexOf(V[i]) !== -1;
+        var isBos = i === BOS;
+
+        var color;
+        if (isBos) color = '#bc8cff';
+        else if (isVowel) color = '#f97316';
+        else color = '#58a6ff';
+
+        // Draw dot
+        ctx.beginPath();
+        ctx.arc(px, py, isBos ? 6 : 5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Label
+        ctx.font = (isBos ? 'bold 9px' : '11px') + ' monospace';
+        ctx.fillStyle = '#c9d1d9';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, px, py - 9);
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Feature 3: Interactive Backprop with real model (Tab 4)
+    // ------------------------------------------------------------------
+    var ibpState = {
+      inputToken: 0,
+      targetToken: 4, // 'e'
+      step: 0,
+      maxSteps: 5,
+      phase: 'idle', // idle, forward, backward
+      embedding: null,
+      logits: null,
+      probs: null,
+      targetProb: 0,
+      loss: 0,
+      // Gradients
+      dLoss: 1,
+      dLogProb: 0,
+      dProbs: null,
+      dLogits: null,
+      dEmbedding: null
+    };
+
+    function ibpBuildSelectors() {
+      var inputSel = document.getElementById('ibp-input-token');
+      var targetSel = document.getElementById('ibp-target-token');
+      inputSel.innerHTML = '';
+      targetSel.innerHTML = '';
+      for (var i = 0; i < V.length; i++) {
+        var label = i === BOS ? 'BOS (' + i + ')' : V[i] + ' (' + i + ')';
+        var opt1 = document.createElement('option');
+        opt1.value = i; opt1.textContent = label;
+        inputSel.appendChild(opt1);
+        var opt2 = document.createElement('option');
+        opt2.value = i; opt2.textContent = label;
+        targetSel.appendChild(opt2);
+      }
+      inputSel.value = '0'; // 'a'
+      targetSel.value = '4'; // 'e'
+    }
+
+    function ibpFormatVec(arr, maxShow) {
+      if (!arr) return '-';
+      maxShow = maxShow || 6;
+      var parts = [];
+      var n = Math.min(arr.length, maxShow);
+      for (var i = 0; i < n; i++) parts.push(arr[i].toFixed(4));
+      if (arr.length > maxShow) parts.push('...');
+      return '[' + parts.join(', ') + ']';
+    }
+
+    function ibpRunForward() {
+      ibpState.inputToken = parseInt(document.getElementById('ibp-input-token').value);
+      ibpState.targetToken = parseInt(document.getElementById('ibp-target-token').value);
+
+      // Step 1: Get embedding
+      ibpState.embedding = W.wte[ibpState.inputToken].slice();
+
+      // Step 2: Compute logits = lm_head @ embedding
+      ibpState.logits = linear(ibpState.embedding, W.lm_head);
+
+      // Step 3: Softmax
+      ibpState.probs = softmax(ibpState.logits);
+
+      // Step 4: Target probability
+      ibpState.targetProb = ibpState.probs[ibpState.targetToken];
+
+      // Step 5: Loss = -log(prob)
+      ibpState.loss = -Math.log(ibpState.targetProb + 1e-10);
+    }
+
+    function ibpRunBackward() {
+      var target = ibpState.targetToken;
+      var probs = ibpState.probs;
+      var N = probs.length;
+
+      // Step 1: dLoss/dLoss = 1
+      ibpState.dLoss = 1.0;
+
+      // Step 2: dLoss/d(log_prob) = -1/prob
+      ibpState.dLogProb = -1.0 / (ibpState.targetProb + 1e-10);
+
+      // Step 3: dLoss/d(probs) - only target position gets gradient from -log(p)
+      ibpState.dProbs = new Array(N);
+      for (var i = 0; i < N; i++) ibpState.dProbs[i] = 0;
+      ibpState.dProbs[target] = ibpState.dLogProb;
+
+      // Step 4: dLoss/d(logits) via softmax Jacobian
+      // d(loss)/d(logit_i) = prob_i - (1 if i==target else 0)
+      // This is the simplified form: softmax grad * upstream = probs[i] - target_onehot[i]
+      ibpState.dLogits = new Array(N);
+      for (var i = 0; i < N; i++) {
+        ibpState.dLogits[i] = probs[i] - (i === target ? 1 : 0);
+      }
+
+      // Step 5: dLoss/d(embedding) = lm_head^T @ dLogits
+      var D = ibpState.embedding.length;
+      ibpState.dEmbedding = new Array(D);
+      for (var j = 0; j < D; j++) {
+        var s = 0;
+        for (var i = 0; i < N; i++) {
+          s += W.lm_head[i][j] * ibpState.dLogits[i];
+        }
+        ibpState.dEmbedding[j] = s;
+      }
+    }
+
+    function ibpRenderSteps() {
+      var container = document.getElementById('ibp-steps-container');
+      container.innerHTML = '';
+      var step = ibpState.step;
+      var inputLabel = ibpState.inputToken === BOS ? 'BOS' : V[ibpState.inputToken];
+      var targetLabel = ibpState.targetToken === BOS ? 'BOS' : V[ibpState.targetToken];
+
+      var steps = [
+        {
+          num: 1,
+          title: '임베딩 조회: embedding = wte[' + inputLabel + ']',
+          forward: ibpState.embedding ? '<span class="bp-forward-val">embedding = ' + ibpFormatVec(ibpState.embedding) + '</span><br>Shape: [' + CFG.n_embd + ']' : '',
+          backward: ibpState.dEmbedding ? '<span class="bp-gradient">d(loss)/d(embedding) = ' + ibpFormatVec(ibpState.dEmbedding) + '</span>' : ''
+        },
+        {
+          num: 2,
+          title: '선형 변환: logits = lm_head @ embedding',
+          forward: ibpState.logits ? '<span class="bp-forward-val">logits = ' + ibpFormatVec(ibpState.logits) + '</span><br>Shape: [' + CFG.vocab_size + ']' : '',
+          backward: ibpState.dLogits ? '<span class="bp-gradient">d(loss)/d(logits) = ' + ibpFormatVec(ibpState.dLogits) + '</span><br><span style="color:var(--text-secondary);font-size:0.72rem;">= softmax(logits) - one_hot(target) (간소화된 형태)</span>' : ''
+        },
+        {
+          num: 3,
+          title: '소프트맥스: probs = softmax(logits)',
+          forward: ibpState.probs ? '<span class="bp-forward-val">probs = ' + ibpFormatVec(ibpState.probs) + '</span><br>probs[' + targetLabel + '] = <strong style="color:var(--accent-green)">' + (ibpState.targetProb || 0).toFixed(6) + '</strong>' : '',
+          backward: ibpState.dProbs ? '<span class="bp-gradient">d(loss)/d(probs[target]) = ' + (ibpState.dLogProb || 0).toFixed(4) + '</span>' : ''
+        },
+        {
+          num: 4,
+          title: '목표 확률: p = probs[target=' + targetLabel + ']',
+          forward: ibpState.targetProb ? '<span class="bp-forward-val">p = ' + ibpState.targetProb.toFixed(6) + '</span>' : '',
+          backward: ibpState.dLogProb ? '<span class="bp-gradient">d(loss)/d(log(p)) = -1/p = ' + ibpState.dLogProb.toFixed(4) + '</span>' : ''
+        },
+        {
+          num: 5,
+          title: '손실: loss = -log(p)',
+          forward: ibpState.loss !== undefined && ibpState.phase !== 'idle' ? '<span class="bp-forward-val">loss = -log(' + (ibpState.targetProb || 0).toFixed(6) + ') = <strong style="color:var(--accent-red)">' + (ibpState.loss || 0).toFixed(4) + '</strong></span>' : '',
+          backward: '<span class="bp-gradient">d(loss)/d(loss) = 1.0</span> (시작점)'
+        }
+      ];
+
+      var showForward = ibpState.phase === 'forward' || ibpState.phase === 'backward';
+      var showBackward = ibpState.phase === 'backward';
+
+      for (var i = 0; i < steps.length; i++) {
+        var s = steps[i];
+        var div = document.createElement('div');
+        var isActive = false;
+        var isCompleted = false;
+
+        if (ibpState.phase === 'forward') {
+          isActive = (i === step - 1);
+          isCompleted = (i < step - 1);
+        } else if (ibpState.phase === 'backward') {
+          var backIdx = ibpState.maxSteps - 1 - i;
+          isActive = (backIdx === step - 1);
+          isCompleted = (backIdx < step - 1);
+        }
+
+        div.className = 'bp-step' + (isActive ? ' active' : '') + (isCompleted ? ' completed' : '');
+
+        var headerHtml = '<div class="bp-step-header"><div style="display:flex;align-items:center;gap:8px;"><div class="bp-step-num">' + s.num + '</div><span style="font-weight:600;font-size:0.85rem;">' + s.title + '</span></div></div>';
+        var bodyHtml = '<div class="bp-values">';
+        if (showForward && s.forward && ((ibpState.phase === 'forward' && i < step) || ibpState.phase === 'backward')) {
+          bodyHtml += '<div style="margin-bottom:4px;">' + s.forward + '</div>';
+        }
+        if (showBackward && s.backward && ((ibpState.maxSteps - 1 - i) < step)) {
+          bodyHtml += '<div>' + s.backward + '</div>';
+        }
+        bodyHtml += '</div>';
+
+        div.innerHTML = headerHtml + bodyHtml;
+        container.appendChild(div);
+      }
+
+      document.getElementById('ibp-step-label').textContent = '단계: ' + step + ' / ' + ibpState.maxSteps;
+    }
+
+    function ibpReset() {
+      ibpState.step = 0;
+      ibpState.phase = 'idle';
+      ibpState.embedding = null;
+      ibpState.logits = null;
+      ibpState.probs = null;
+      ibpState.targetProb = 0;
+      ibpState.loss = 0;
+      ibpState.dLoss = 1;
+      ibpState.dLogProb = 0;
+      ibpState.dProbs = null;
+      ibpState.dLogits = null;
+      ibpState.dEmbedding = null;
+      ibpRenderSteps();
+    }
+
+    function initInteractiveBackprop() {
+      ibpBuildSelectors();
+
+      document.getElementById('ibp-forward-btn').addEventListener('click', function() {
+        ibpRunForward();
+        ibpState.phase = 'forward';
+        ibpState.step = ibpState.maxSteps;
+        ibpRenderSteps();
+      });
+
+      document.getElementById('ibp-backward-btn').addEventListener('click', function() {
+        if (ibpState.phase === 'idle') {
+          ibpRunForward();
+          ibpState.phase = 'forward';
+          ibpState.step = ibpState.maxSteps;
+        }
+        ibpRunBackward();
+        ibpState.phase = 'backward';
+        ibpState.step = ibpState.maxSteps;
+        ibpRenderSteps();
+      });
+
+      document.getElementById('ibp-step-btn').addEventListener('click', function() {
+        if (ibpState.phase === 'idle') {
+          ibpRunForward();
+          ibpState.phase = 'forward';
+          ibpState.step = 1;
+          ibpRenderSteps();
+          return;
+        }
+        if (ibpState.phase === 'forward' && ibpState.step < ibpState.maxSteps) {
+          ibpState.step++;
+          ibpRenderSteps();
+          return;
+        }
+        if (ibpState.phase === 'forward' && ibpState.step >= ibpState.maxSteps) {
+          ibpRunBackward();
+          ibpState.phase = 'backward';
+          ibpState.step = 1;
+          ibpRenderSteps();
+          return;
+        }
+        if (ibpState.phase === 'backward' && ibpState.step < ibpState.maxSteps) {
+          ibpState.step++;
+          ibpRenderSteps();
+          return;
+        }
+      });
+
+      document.getElementById('ibp-reset-btn').addEventListener('click', ibpReset);
+
+      ibpRenderSteps();
+    }
+
+    // ------------------------------------------------------------------
+    // Feature 4: Loss Landscape (Tab 2)
+    // ------------------------------------------------------------------
+    var lossLandscapeGenerated = false;
+    var lossLandscapeGrid = null;
+
+    function generateLossLandscape() {
+      if (!T || !T.snapshots || T.snapshots.length === 0) return;
+
+      var gridSize = 25;
+
+      // Collect training examples from snapshots
+      var examples = [];
+      for (var si = 0; si < T.snapshots.length; si++) {
+        var snap = T.snapshots[si];
+        if (snap.tokens && snap.tokens.length >= 2) {
+          examples.push(snap.tokens);
+        }
+        if (examples.length >= 3) break;
+      }
+      if (examples.length === 0) return;
+
+      // Perturb full wte matrix (27×16 = 432 params) along 2 random orthogonal directions
+      var nRows = W.wte.length;
+      var nCols = W.wte[0].length;
+      var totalDim = nRows * nCols;
+
+      // Save original wte
+      var origWte = [];
+      for (var r = 0; r < nRows; r++) origWte.push(W.wte[r].slice());
+
+      // Two random direction vectors
+      var rng = mulberry32(42);
+      var dir1 = new Array(totalDim);
+      var dir2 = new Array(totalDim);
+      for (var i = 0; i < totalDim; i++) {
+        dir1[i] = rng() * 2 - 1;
+        dir2[i] = rng() * 2 - 1;
+      }
+
+      // Normalize dir1
+      var norm1 = 0;
+      for (var i = 0; i < totalDim; i++) norm1 += dir1[i] * dir1[i];
+      norm1 = Math.sqrt(norm1);
+      for (var i = 0; i < totalDim; i++) dir1[i] /= norm1;
+
+      // Gram-Schmidt: orthogonalize dir2 w.r.t. dir1
+      var dot12 = 0;
+      for (var i = 0; i < totalDim; i++) dot12 += dir2[i] * dir1[i];
+      for (var i = 0; i < totalDim; i++) dir2[i] -= dot12 * dir1[i];
+      var norm2 = 0;
+      for (var i = 0; i < totalDim; i++) norm2 += dir2[i] * dir2[i];
+      norm2 = Math.sqrt(norm2);
+      for (var i = 0; i < totalDim; i++) dir2[i] /= norm2;
+
+      // Filter-wise normalize: scale each row of direction to match norm of original wte row
+      // This follows Li et al. "Visualizing the Loss Landscape of Neural Nets" (2018)
+      for (var r = 0; r < nRows; r++) {
+        var wNorm = 0, d1Norm = 0, d2Norm = 0;
+        for (var c = 0; c < nCols; c++) {
+          wNorm += origWte[r][c] * origWte[r][c];
+          var idx = r * nCols + c;
+          d1Norm += dir1[idx] * dir1[idx];
+          d2Norm += dir2[idx] * dir2[idx];
+        }
+        wNorm = Math.sqrt(wNorm); d1Norm = Math.sqrt(d1Norm); d2Norm = Math.sqrt(d2Norm);
+        if (d1Norm > 1e-8 && d2Norm > 1e-8) {
+          for (var c = 0; c < nCols; c++) {
+            var idx = r * nCols + c;
+            dir1[idx] *= wNorm / d1Norm;
+            dir2[idx] *= wNorm / d2Norm;
+          }
+        }
+      }
+
+      var perturbRange = 1.0;
+
+      lossLandscapeGrid = {
+        data: [],
+        gridSize: gridSize,
+        minLoss: Infinity,
+        maxLoss: -Infinity
+      };
+
+      for (var gy = 0; gy < gridSize; gy++) {
+        var row = [];
+        var alpha2 = -perturbRange + (2 * perturbRange * gy / (gridSize - 1));
+        for (var gx = 0; gx < gridSize; gx++) {
+          var alpha1 = -perturbRange + (2 * perturbRange * gx / (gridSize - 1));
+
+          // Perturb wte in-place
+          for (var r = 0; r < nRows; r++) {
+            for (var c = 0; c < nCols; c++) {
+              var idx = r * nCols + c;
+              W.wte[r][c] = origWte[r][c] + alpha1 * dir1[idx] + alpha2 * dir2[idx];
+            }
+          }
+
+          // Average loss over training examples
+          var totalLoss = 0, totalCount = 0;
+          for (var ei = 0; ei < examples.length; ei++) {
+            var tokens = examples[ei];
+            var keys = [], valsArr = [];
+            for (var li = 0; li < CFG.n_layer; li++) { keys.push([]); valsArr.push([]); }
+            for (var p = 0; p < tokens.length - 1; p++) {
+              var result = gptForward(tokens[p], p, keys, valsArr, W);
+              var probs = softmax(result.logits);
+              totalLoss += -Math.log(probs[tokens[p + 1]] + 1e-10);
+              totalCount++;
+            }
+          }
+
+          var avgLoss = totalCount > 0 ? totalLoss / totalCount : 0;
+          row.push(avgLoss);
+          if (avgLoss < lossLandscapeGrid.minLoss) lossLandscapeGrid.minLoss = avgLoss;
+          if (avgLoss > lossLandscapeGrid.maxLoss) lossLandscapeGrid.maxLoss = avgLoss;
+        }
+        lossLandscapeGrid.data.push(row);
+      }
+
+      // Restore original wte
+      for (var r = 0; r < nRows; r++) {
+        for (var c = 0; c < nCols; c++) W.wte[r][c] = origWte[r][c];
+      }
+
+      lossLandscapeGenerated = true;
+    }
+
+    function drawLossLandscape() {
+      var canvas = document.getElementById('loss-landscape-canvas');
+      if (!canvas) return;
+      if (!lossLandscapeGenerated) return;
+
+      var grid = lossLandscapeGrid;
+      var size = getCanvasSize(canvas);
+      var ctx = setupCanvas(canvas, size.w, size.h);
+      var w = size.w, h = size.h;
+
+      var pad = { top: 20, right: 20, bottom: 30, left: 30 };
+      var pw = w - pad.left - pad.right;
+      var ph = h - pad.top - pad.bottom;
+      var cellW = pw / grid.gridSize;
+      var cellH = ph / grid.gridSize;
+
+      ctx.clearRect(0, 0, w, h);
+
+      var minL = grid.minLoss;
+      var maxL = grid.maxLoss;
+      var rangeL = maxL - minL || 1;
+
+      // Color scale: blue (low) -> cyan -> green -> yellow -> orange -> red (high)
+      function lossColor(val) {
+        var t = (val - minL) / rangeL; // 0 to 1
+        t = Math.max(0, Math.min(1, t));
+        var r, g, b;
+        if (t < 0.2) {
+          var s = t / 0.2;
+          r = Math.round(59 * (1 - s) + 34 * s);
+          g = Math.round(130 * (1 - s) + 211 * s);
+          b = Math.round(246 * (1 - s) + 238 * s);
+        } else if (t < 0.4) {
+          var s = (t - 0.2) / 0.2;
+          r = Math.round(34 * (1 - s) + 132 * s);
+          g = Math.round(211 * (1 - s) + 204 * s);
+          b = Math.round(238 * (1 - s) + 22 * s);
+        } else if (t < 0.6) {
+          var s = (t - 0.4) / 0.2;
+          r = Math.round(132 * (1 - s) + 234 * s);
+          g = Math.round(204 * (1 - s) + 179 * s);
+          b = Math.round(22 * (1 - s) + 8 * s);
+        } else if (t < 0.8) {
+          var s = (t - 0.6) / 0.2;
+          r = Math.round(234 * (1 - s) + 249 * s);
+          g = Math.round(179 * (1 - s) + 115 * s);
+          b = Math.round(8 * (1 - s) + 22 * s);
+        } else {
+          var s = (t - 0.8) / 0.2;
+          r = Math.round(249 * (1 - s) + 239 * s);
+          g = Math.round(115 * (1 - s) + 68 * s);
+          b = Math.round(22 * (1 - s) + 68 * s);
+        }
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+      }
+
+      // Draw heatmap
+      for (var gy = 0; gy < grid.gridSize; gy++) {
+        for (var gx = 0; gx < grid.gridSize; gx++) {
+          ctx.fillStyle = lossColor(grid.data[gy][gx]);
+          ctx.fillRect(pad.left + gx * cellW, pad.top + gy * cellH, Math.ceil(cellW), Math.ceil(cellH));
+        }
+      }
+
+      // Mark center (trained weights)
+      var cx = pad.left + (grid.gridSize / 2) * cellW;
+      var cy = pad.top + (grid.gridSize / 2) * cellH;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Cross
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, cy); ctx.lineTo(cx + 4, cy);
+      ctx.moveTo(cx, cy - 4); ctx.lineTo(cx, cy + 4);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Axis labels
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#8b949e';
+      ctx.textAlign = 'center';
+      ctx.fillText('방향 1', w / 2, h - 6);
+      ctx.save();
+      ctx.translate(12, h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('방향 2', 0, 0);
+      ctx.restore();
+
+      // Info text
+      var infoEl = document.getElementById('landscape-info');
+      if (infoEl) {
+        infoEl.textContent = "임베딩 가중치 공간 (filter-normalized) | 손실 범위: " +
+          minL.toFixed(2) + ' ~ ' + maxL.toFixed(2) +
+          ' | 학습된 위치 = 흰 점 (loss: ' + grid.data[Math.floor(grid.gridSize / 2)][Math.floor(grid.gridSize / 2)].toFixed(4) + ')';
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Feature 5: Beam Search Tree (Tab 7)
+    // ------------------------------------------------------------------
+    function beamSearch(startTokens, beamWidth, maxDepth) {
+      // Initialize beams
+      var beams = [{
+        tokens: startTokens.slice(),
+        keys: [],
+        vals: [],
+        logProb: 0,
+        finished: false
+      }];
+
+      // Run forward pass for initial tokens to build KV cache
+      for (var bi = 0; bi < beams.length; bi++) {
+        for (var li = 0; li < CFG.n_layer; li++) {
+          beams[bi].keys.push([]);
+          beams[bi].vals.push([]);
+        }
+        for (var p = 0; p < startTokens.length; p++) {
+          gptForward(startTokens[p], p, beams[bi].keys, beams[bi].vals, W);
+        }
+      }
+
+      var tree = { token: null, prob: 1, cumProb: 1, children: [], label: startTokens.map(function(t) { return t === BOS ? 'BOS' : V[t]; }).join('') };
+
+      var levels = []; // levels[depth] = array of { node, beam }
+
+      for (var depth = 0; depth < maxDepth; depth++) {
+        var candidates = [];
+
+        for (var bi = 0; bi < beams.length; bi++) {
+          var beam = beams[bi];
+          if (beam.finished) continue;
+
+          var lastToken = beam.tokens[beam.tokens.length - 1];
+          var pos = beam.tokens.length - 1;
+          var result = gptForward(lastToken, pos, beam.keys, beam.vals, W);
+          var probs = softmax(result.logits);
+
+          // Get top-k
+          var items = [];
+          for (var i = 0; i < probs.length; i++) {
+            items.push({ id: i, prob: probs[i] });
+          }
+          items.sort(function(a, b) { return b.prob - a.prob; });
+          var topK = items.slice(0, beamWidth);
+
+          for (var ti = 0; ti < topK.length; ti++) {
+            var newLogProb = beam.logProb + Math.log(topK[ti].prob + 1e-10);
+            candidates.push({
+              parentBeamIdx: bi,
+              tokenId: topK[ti].id,
+              prob: topK[ti].prob,
+              logProb: newLogProb,
+              finished: topK[ti].id === BOS
+            });
+          }
+        }
+
+        // Sort candidates by log probability
+        candidates.sort(function(a, b) { return b.logProb - a.logProb; });
+        var selected = candidates.slice(0, beamWidth);
+
+        // Build new beams
+        var newBeams = [];
+        for (var si = 0; si < selected.length; si++) {
+          var sel = selected[si];
+          var parentBeam = beams[sel.parentBeamIdx];
+
+          // Deep copy KV cache
+          var newKeys = [];
+          var newVals = [];
+          for (var li = 0; li < CFG.n_layer; li++) {
+            newKeys.push(parentBeam.keys[li].map(function(arr) { return arr.slice(); }));
+            newVals.push(parentBeam.vals[li].map(function(arr) { return arr.slice(); }));
+          }
+
+          var newTokens = parentBeam.tokens.slice();
+          newTokens.push(sel.tokenId);
+
+          newBeams.push({
+            tokens: newTokens,
+            keys: newKeys,
+            vals: newVals,
+            logProb: sel.logProb,
+            finished: sel.finished,
+            prob: sel.prob,
+            parentIdx: sel.parentBeamIdx
+          });
+        }
+
+        beams = newBeams;
+        levels.push(selected);
+
+        // Check if all beams are finished
+        var allFinished = true;
+        for (var bi = 0; bi < beams.length; bi++) {
+          if (!beams[bi].finished) { allFinished = false; break; }
+        }
+        if (allFinished) break;
+      }
+
+      return { beams: beams, levels: levels };
+    }
+
+    function drawBeamTree(container, result) {
+      container.innerHTML = '';
+      var beams = result.beams;
+      var levels = result.levels;
+
+      if (beams.length === 0 || levels.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-secondary);padding:20px;text-align:center;">결과가 없습니다.</div>';
+        return;
+      }
+
+      // Find the best beam
+      var bestIdx = 0;
+      for (var i = 1; i < beams.length; i++) {
+        if (beams[i].logProb > beams[bestIdx].logProb) bestIdx = i;
+      }
+      var bestBeam = beams[bestIdx];
+
+      // Summary
+      var summaryDiv = document.createElement('div');
+      summaryDiv.style.cssText = 'margin-bottom:12px;font-size:0.85rem;color:var(--text-secondary);';
+      var bestName = '';
+      for (var i = 0; i < bestBeam.tokens.length; i++) {
+        var t = bestBeam.tokens[i];
+        if (t !== BOS) bestName += V[t];
+      }
+      summaryDiv.innerHTML = '최적 경로: <strong style="color:var(--accent-green);font-family:var(--font-mono);font-size:1rem;">' + bestName + '</strong>' +
+        ' <span style="font-size:0.78rem;">(누적 log prob: ' + bestBeam.logProb.toFixed(4) + ')</span>';
+      container.appendChild(summaryDiv);
+
+      // Display each level as a row
+      for (var d = 0; d < levels.length; d++) {
+        var level = levels[d];
+
+        // Connector
+        if (d > 0) {
+          var connDiv = document.createElement('div');
+          connDiv.className = 'beam-connector';
+          connDiv.textContent = '|';
+          container.appendChild(connDiv);
+        }
+
+        var levelDiv = document.createElement('div');
+        levelDiv.className = 'beam-level';
+
+        for (var ni = 0; ni < level.length; ni++) {
+          var sel = level[ni];
+          var tokenLabel = sel.tokenId === BOS ? 'BOS' : V[sel.tokenId];
+          var probPct = (sel.prob * 100).toFixed(1);
+
+          var nodeDiv = document.createElement('div');
+          nodeDiv.className = 'beam-node';
+
+          // Check if this node is on the best path
+          if (ni < beams.length && d < levels.length) {
+            // Highlight if this is part of the final best beam's path
+            // Simple heuristic: highlight nodes in the position of the best beam
+            if (ni === bestIdx || (d === levels.length - 1 && ni === bestIdx)) {
+              nodeDiv.classList.add('best');
+            }
+          }
+          // More accurate: check if this candidate leads to the best beam
+          if (ni === 0) { // Top candidate at each level is usually best
+            nodeDiv.classList.add('best');
+          }
+
+          // Color by probability
+          var t = Math.min(1, sel.prob * 3);
+          var r = Math.round(248 * (1 - t) + 63 * t);
+          var g = Math.round(81 * (1 - t) + 185 * t);
+          var b = Math.round(73 * (1 - t) + 80 * t);
+          var tokenColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+
+          nodeDiv.innerHTML = '<div class="beam-token" style="color:' + tokenColor + ';">' + tokenLabel + '</div>' +
+            '<div class="beam-prob">' + probPct + '%</div>' +
+            '<div class="beam-prob">logP: ' + sel.logProb.toFixed(2) + '</div>';
+
+          levelDiv.appendChild(nodeDiv);
+        }
+
+        container.appendChild(levelDiv);
+      }
+
+      // Final beam results
+      var resultDiv = document.createElement('div');
+      resultDiv.style.cssText = 'margin-top:12px;padding:12px;background:var(--surface);border-radius:8px;border:1px solid var(--border);';
+      var resultsHtml = '<div style="font-weight:600;margin-bottom:8px;font-size:0.85rem;">최종 빔 결과:</div>';
+      for (var i = 0; i < beams.length; i++) {
+        var bm = beams[i];
+        var name = '';
+        for (var j = 0; j < bm.tokens.length; j++) {
+          if (bm.tokens[j] !== BOS) name += V[bm.tokens[j]];
+        }
+        var isBest = (i === bestIdx);
+        resultsHtml += '<div style="font-family:var(--font-mono);font-size:0.82rem;margin:4px 0;' +
+          (isBest ? 'color:var(--accent-green);font-weight:600;' : 'color:var(--text-secondary);') + '">' +
+          (isBest ? '* ' : '  ') + name + (bm.finished ? ' [END]' : ' ...') +
+          ' (logP: ' + bm.logProb.toFixed(4) + ')' +
+          '</div>';
+      }
+      resultDiv.innerHTML = resultsHtml;
+      container.appendChild(resultDiv);
+    }
+
+    function runBeamSearch() {
+      var startText = document.getElementById('beam-start').value.toLowerCase().replace(/[^a-z]/g, '');
+      var beamWidth = parseInt(document.getElementById('beam-width').value) || 3;
+      var maxDepth = parseInt(document.getElementById('beam-depth').value) || 4;
+
+      // Tokenize starting text
+      var startTokens = [BOS];
+      for (var i = 0; i < startText.length; i++) {
+        if (charToId.hasOwnProperty(startText[i])) {
+          startTokens.push(charToId[startText[i]]);
+        }
+      }
+
+      var result = beamSearch(startTokens, beamWidth, maxDepth);
+      var container = document.getElementById('beam-tree-container');
+      drawBeamTree(container, result);
+    }
+
+    function initBeamSearch() {
+      document.getElementById('beam-search-btn').addEventListener('click', runBeamSearch);
+      document.getElementById('beam-start').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') runBeamSearch();
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // Update init functions to include new features
+    // ------------------------------------------------------------------
+    var origInitInternals = initInternals;
+    var snapshotAnimInitialized = false;
+    initInternals = function() {
+      origInitInternals();
+      if (!snapshotAnimInitialized) {
+        initSnapshotAnimation();
+        snapshotAnimInitialized = true;
+      } else {
+        drawSnapshotAttention(parseInt(document.getElementById('snapshot-anim-slider').value));
+      }
+      drawEmbedding2D();
+    };
+
+    var origInitLab = initLab;
+    var beamSearchInitialized = false;
+    initLab = function() {
+      origInitLab();
+      if (!beamSearchInitialized) {
+        initBeamSearch();
+        beamSearchInitialized = true;
+      }
+    };
+
+    // Interactive backprop: initialized on first backprop tab visit via switchTab
+    var ibpInitialized = false;
+
+    // Loss landscape: initialized on first training tab visit via switchTab
+    var lossLandscapeInitialized = false;
+
+    // ------------------------------------------------------------------
     // Hash routing (after all tab init code so variables are defined)
     // ------------------------------------------------------------------
     var validTabs = ['tokenizer', 'training', 'inference', 'backprop', 'internals', 'pipeline', 'lab'];
@@ -3137,7 +4314,7 @@ python microgpt.py<br><br>
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function() {
-        if (currentTab === 'training') { drawLossChart(); drawLRChart(); }
+        if (currentTab === 'training') { drawLossChart(); drawLRChart(); if (lossLandscapeGenerated) drawLossLandscape(); }
         if (currentTab === 'backprop') { drawBPGraph(); }
         if (currentTab === 'internals') { initInternals(); }
         if (currentTab === 'pipeline') { initPipeline(); }
