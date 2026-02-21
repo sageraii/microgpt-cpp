@@ -3281,9 +3281,14 @@ python microgpt.py<br><br>
         var T_len = headData.length;
         if (T_len === 0) continue;
 
-        var size = getCanvasSize(canvas);
-        var ctx = setupCanvas(canvas, size.w, size.h);
-        var w = size.w, hh = size.h;
+        // Reset inline styles so CSS grid can properly size the canvas
+        canvas.style.width = '';
+        canvas.style.height = '';
+        var rect = canvas.getBoundingClientRect();
+        var cw = Math.floor(rect.width) || 200;
+        var ch = Math.floor(rect.height) || 200;
+        var ctx = setupCanvas(canvas, cw, ch);
+        var w = cw, hh = ch;
 
         var labelW = 28;
         var labelH = 24;
