@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MicroGPT Visual Explorer</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1008,6 +1009,25 @@
         </div>
       </div>
 
+      <!-- Feature: Training Before/After Comparison -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>학습 전 vs 후 비교</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">
+          랜덤 초기화 가중치(학습 전)와 학습된 가중치로 생성한 이름을 비교합니다.
+        </p>
+        <button id="compare-gen-btn" style="padding:6px 16px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);cursor:pointer;font-size:0.8rem;margin-bottom:12px;">비교 생성</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="compare-container">
+          <div>
+            <div style="color:var(--accent-orange);font-weight:600;margin-bottom:8px;">학습 전 (랜덤 가중치)</div>
+            <div id="compare-random" style="font-family:var(--font-mono);color:var(--text-secondary);line-height:1.8;"></div>
+          </div>
+          <div>
+            <div style="color:var(--accent-blue);font-weight:600;margin-bottom:8px;">학습 후 (학습된 가중치)</div>
+            <div id="compare-trained" style="font-family:var(--font-mono);color:var(--text-primary);line-height:1.8;"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid-2">
         <div>
           <div class="card">
@@ -1159,6 +1179,35 @@
         </div>
       </div>
 
+      <!-- Feature: Interactive Weight Edit -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-green)"></span>실험: 가중치 직접 편집</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">
+          임베딩 가중치를 직접 수정하고 모델 출력 변화를 관찰합니다. 단 하나의 숫자가 전체 확률 분포를 어떻게 바꾸는지 확인하세요.
+        </p>
+        <div id="weight-edit-controls" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <div><label style="color:var(--text-secondary);font-size:0.75rem;">토큰:</label>
+            <select id="we-token" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-family:var(--font-mono);font-size:0.8rem;"></select></div>
+          <div><label style="color:var(--text-secondary);font-size:0.75rem;">차원:</label>
+            <select id="we-dim" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-family:var(--font-mono);font-size:0.8rem;"></select></div>
+          <div style="flex:1;min-width:200px;">
+            <label style="color:var(--text-secondary);font-size:0.75rem;">값: <span id="we-value">0.00</span> (원본: <span id="we-orig">0.00</span>)</label>
+            <input type="range" id="we-slider" min="-1.5" max="1.5" step="0.01" style="width:100%;">
+          </div>
+          <button id="we-reset" style="padding:6px 16px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);cursor:pointer;font-size:0.8rem;">복원</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <div style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:4px;">원본 확률 분포 (BOS 다음 토큰)</div>
+            <canvas id="we-orig-canvas" style="width:100%;height:200px;background:var(--surface);border-radius:8px;"></canvas>
+          </div>
+          <div>
+            <div style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:4px;">수정된 확률 분포</div>
+            <canvas id="we-mod-canvas" style="width:100%;height:200px;background:var(--surface);border-radius:8px;"></canvas>
+          </div>
+        </div>
+      </div>
+
       <div class="doc-links">
         <div class="doc-links-title">자세히 알아보기</div>
         <a href="https://github.com/sageraii/microgpt-cpp/blob/main/docs/part2-cpp/ch08-value-struct.md" target="_blank">Ch08: Value 구조체<span class="link-arrow">&rarr;</span></a>
@@ -1243,6 +1292,20 @@
           <button class="btn btn-green" id="beam-search-btn">탐색</button>
         </div>
         <div class="beam-tree" id="beam-tree-container"></div>
+      </div>
+
+      <!-- Feature: Perplexity Calculator -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent-blue)"></span>실험 5: Perplexity 계산기</div>
+        <p style="color:var(--text-secondary);font-size:0.8rem;margin-bottom:12px;">
+          이름을 입력하면 모델이 얼마나 "자연스럽다"고 평가하는지 점수를 보여줍니다. Perplexity가 낮을수록 모델에게 익숙한 패턴입니다.
+        </p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="ppl-input" placeholder="이름 입력 (예: emma)" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-family:var(--font-mono);font-size:0.85rem;" value="emma">
+          <button id="ppl-btn" style="padding:6px 16px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);cursor:pointer;font-size:0.8rem;">계산</button>
+        </div>
+        <div id="ppl-result" style="margin-bottom:12px;"></div>
+        <div id="ppl-detail"></div>
       </div>
 
       <div class="doc-links">
@@ -4268,10 +4331,442 @@ python microgpt.py<br><br>
     }
 
     // ------------------------------------------------------------------
+    // Feature: Interactive Weight Edit (Tab 5)
+    // ------------------------------------------------------------------
+    var weOrigWeights = null; // deep copy of original wte
+    var weInitialized = false;
+
+    function weDeepCopyWte() {
+      var copy = [];
+      for (var i = 0; i < W.wte.length; i++) {
+        copy.push(W.wte[i].slice());
+      }
+      return copy;
+    }
+
+    function weRunForward(weights) {
+      // Run BOS through model and get probability distribution
+      var keys = [];
+      var vals = [];
+      for (var li = 0; li < CFG.n_layer; li++) { keys.push([]); vals.push([]); }
+      var result = gptForward(BOS, 0, keys, vals, weights);
+      return softmax(result.logits);
+    }
+
+    function weDrawBarChart(canvas, probs, topN) {
+      var rect = canvas.getBoundingClientRect();
+      var w = Math.floor(rect.width);
+      var h = Math.floor(rect.height);
+      if (w < 10 || h < 10) return;
+      var ctx = setupCanvas(canvas, w, h);
+      ctx.clearRect(0, 0, w, h);
+
+      // Sort by probability, take top N
+      var items = [];
+      for (var i = 0; i < probs.length; i++) {
+        items.push({ id: i, prob: probs[i] });
+      }
+      items.sort(function(a, b) { return b.prob - a.prob; });
+      var top = items.slice(0, topN);
+
+      var pad = { top: 10, right: 10, bottom: 25, left: 35 };
+      var pw = w - pad.left - pad.right;
+      var ph = h - pad.top - pad.bottom;
+      var barW = Math.floor(pw / top.length) - 2;
+      var maxProb = top[0].prob || 0.01;
+
+      for (var i = 0; i < top.length; i++) {
+        var barH = Math.max(1, (top[i].prob / maxProb) * ph);
+        var x = pad.left + i * (barW + 2);
+        var y = pad.top + ph - barH;
+        var t = top[i].prob / maxProb;
+        var r = Math.round(88 + (248 - 88) * (1 - t));
+        var g = Math.round(166 + (81 - 166) * (1 - t));
+        var b = Math.round(255 + (73 - 255) * (1 - t));
+        ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+        ctx.fillRect(x, y, barW, barH);
+
+        // Label
+        ctx.fillStyle = 'var(--text-secondary)';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+        var label = top[i].id === BOS ? 'BOS' : V[top[i].id];
+        ctx.fillText(label, x + barW / 2, pad.top + ph + 12);
+
+        // Probability on top of bar
+        ctx.fillStyle = '#c9d1d9';
+        ctx.font = '8px monospace';
+        ctx.fillText((top[i].prob * 100).toFixed(1), x + barW / 2, y - 3);
+      }
+    }
+
+    function weUpdate() {
+      var tokenIdx = parseInt(document.getElementById('we-token').value);
+      var dimIdx = parseInt(document.getElementById('we-dim').value);
+      var slider = document.getElementById('we-slider');
+      var newVal = parseFloat(slider.value);
+
+      document.getElementById('we-value').textContent = newVal.toFixed(2);
+      document.getElementById('we-orig').textContent = weOrigWeights[tokenIdx][dimIdx].toFixed(2);
+
+      // Temporarily modify the weight
+      W.wte[tokenIdx][dimIdx] = newVal;
+
+      // Compute modified probabilities
+      var modProbs = weRunForward(W);
+
+      // Restore the weight
+      W.wte[tokenIdx][dimIdx] = weOrigWeights[tokenIdx][dimIdx];
+
+      // Compute original probabilities
+      var origProbs = weRunForward(W);
+
+      // Draw both charts
+      weDrawBarChart(document.getElementById('we-orig-canvas'), origProbs, 10);
+      weDrawBarChart(document.getElementById('we-mod-canvas'), modProbs, 10);
+    }
+
+    function initWeightEdit() {
+      if (weInitialized) { weUpdate(); return; }
+      weInitialized = true;
+
+      weOrigWeights = weDeepCopyWte();
+
+      // Populate token dropdown
+      var tokenSelect = document.getElementById('we-token');
+      for (var i = 0; i < V.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i === BOS ? 'BOS (' + i + ')' : V[i] + ' (' + i + ')';
+        tokenSelect.appendChild(opt);
+      }
+
+      // Populate dimension dropdown
+      var dimSelect = document.getElementById('we-dim');
+      for (var d = 0; d < CFG.n_embd; d++) {
+        var opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        dimSelect.appendChild(opt);
+      }
+
+      // Set initial slider value
+      var initToken = parseInt(tokenSelect.value);
+      var initDim = parseInt(dimSelect.value);
+      var slider = document.getElementById('we-slider');
+      slider.value = weOrigWeights[initToken][initDim];
+      document.getElementById('we-value').textContent = weOrigWeights[initToken][initDim].toFixed(2);
+      document.getElementById('we-orig').textContent = weOrigWeights[initToken][initDim].toFixed(2);
+
+      // Event listeners
+      slider.addEventListener('input', weUpdate);
+
+      tokenSelect.addEventListener('change', function() {
+        var t = parseInt(tokenSelect.value);
+        var d = parseInt(dimSelect.value);
+        slider.value = weOrigWeights[t][d];
+        weUpdate();
+      });
+
+      dimSelect.addEventListener('change', function() {
+        var t = parseInt(tokenSelect.value);
+        var d = parseInt(dimSelect.value);
+        slider.value = weOrigWeights[t][d];
+        weUpdate();
+      });
+
+      document.getElementById('we-reset').addEventListener('click', function() {
+        var t = parseInt(tokenSelect.value);
+        var d = parseInt(dimSelect.value);
+        slider.value = weOrigWeights[t][d];
+        weUpdate();
+      });
+
+      weUpdate();
+    }
+
+    // ------------------------------------------------------------------
+    // Feature: Training Before/After Comparison (Tab 3)
+    // ------------------------------------------------------------------
+    function createRandomWeights(seed) {
+      var rng = mulberry32(seed);
+      var rw = {};
+
+      // wte: [vocab_size x n_embd] Xavier: std = 1/sqrt(n_embd)
+      var stdEmbd = 1.0 / Math.sqrt(CFG.n_embd);
+      rw.wte = [];
+      for (var i = 0; i < CFG.vocab_size; i++) {
+        var row = [];
+        for (var j = 0; j < CFG.n_embd; j++) {
+          // Box-Muller for normal distribution
+          var u1 = rng() || 1e-10;
+          var u2 = rng();
+          row.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * stdEmbd);
+        }
+        rw.wte.push(row);
+      }
+
+      // wpe: [block_size x n_embd]
+      rw.wpe = [];
+      for (var i = 0; i < CFG.block_size; i++) {
+        var row = [];
+        for (var j = 0; j < CFG.n_embd; j++) {
+          var u1 = rng() || 1e-10;
+          var u2 = rng();
+          row.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * stdEmbd);
+        }
+        rw.wpe.push(row);
+      }
+
+      // Per layer weights
+      for (var li = 0; li < CFG.n_layer; li++) {
+        var pfx = 'layer' + li;
+        var attnDim = CFG.n_head * CFG.head_dim;
+        var stdAttn = 1.0 / Math.sqrt(CFG.n_embd);
+        var stdProj = 1.0 / Math.sqrt(attnDim);
+        var stdMlp1 = 1.0 / Math.sqrt(CFG.n_embd);
+        var stdMlp2 = 1.0 / Math.sqrt(4 * CFG.n_embd);
+
+        // attn_wq, attn_wk, attn_wv: [attnDim x n_embd]
+        var names = ['.attn_wq', '.attn_wk', '.attn_wv'];
+        for (var ni = 0; ni < names.length; ni++) {
+          var mat = [];
+          for (var r = 0; r < attnDim; r++) {
+            var row = [];
+            for (var c = 0; c < CFG.n_embd; c++) {
+              var u1 = rng() || 1e-10;
+              var u2 = rng();
+              row.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * stdAttn);
+            }
+            mat.push(row);
+          }
+          rw[pfx + names[ni]] = mat;
+        }
+
+        // attn_proj: [n_embd x attnDim]
+        var proj = [];
+        for (var r = 0; r < CFG.n_embd; r++) {
+          var row = [];
+          for (var c = 0; c < attnDim; c++) {
+            var u1 = rng() || 1e-10;
+            var u2 = rng();
+            row.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * stdProj);
+          }
+          proj.push(row);
+        }
+        rw[pfx + '.attn_wo'] = proj;
+
+        // mlp_w1: [4*n_embd x n_embd]
+        var mlp1 = [];
+        for (var r = 0; r < 4 * CFG.n_embd; r++) {
+          var row = [];
+          for (var c = 0; c < CFG.n_embd; c++) {
+            var u1 = rng() || 1e-10;
+            var u2 = rng();
+            row.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * stdMlp1);
+          }
+          mlp1.push(row);
+        }
+        rw[pfx + '.mlp_fc1'] = mlp1;
+
+        // mlp_w2: [n_embd x 4*n_embd]
+        var mlp2 = [];
+        for (var r = 0; r < CFG.n_embd; r++) {
+          var row = [];
+          for (var c = 0; c < 4 * CFG.n_embd; c++) {
+            var u1 = rng() || 1e-10;
+            var u2 = rng();
+            row.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * stdMlp2);
+          }
+          mlp2.push(row);
+        }
+        rw[pfx + '.mlp_fc2'] = mlp2;
+      }
+
+      // lm_head: [vocab_size x n_embd]
+      var stdLm = 1.0 / Math.sqrt(CFG.n_embd);
+      rw.lm_head = [];
+      for (var i = 0; i < CFG.vocab_size; i++) {
+        var row = [];
+        for (var j = 0; j < CFG.n_embd; j++) {
+          var u1 = rng() || 1e-10;
+          var u2 = rng();
+          row.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * stdLm);
+        }
+        rw.lm_head.push(row);
+      }
+
+      return rw;
+    }
+
+    function generateNameWithWeights(weights, seed) {
+      var rng = mulberry32(seed);
+      var temperature = 0.8;
+      var maxLen = 16;
+      var token = BOS;
+      var name = '';
+      var keys = [];
+      var vals = [];
+      for (var li = 0; li < CFG.n_layer; li++) { keys.push([]); vals.push([]); }
+
+      for (var pos = 0; pos < maxLen; pos++) {
+        var result = gptForward(token, pos, keys, vals, weights);
+        var logits = result.logits;
+
+        // Apply temperature
+        for (var i = 0; i < logits.length; i++) logits[i] /= temperature;
+        var probs = softmax(logits);
+
+        // Sample
+        var r = rng();
+        var cumulative = 0;
+        var sampled = probs.length - 1;
+        for (var i = 0; i < probs.length; i++) {
+          cumulative += probs[i];
+          if (r < cumulative) { sampled = i; break; }
+        }
+
+        if (sampled === BOS) break;
+        name += V[sampled];
+        token = sampled;
+      }
+      return name;
+    }
+
+    function runComparison() {
+      var randomWeights = createRandomWeights(123);
+      var randomDiv = document.getElementById('compare-random');
+      var trainedDiv = document.getElementById('compare-trained');
+      var randomNames = [];
+      var trainedNames = [];
+
+      for (var i = 0; i < 10; i++) {
+        randomNames.push(generateNameWithWeights(randomWeights, 1000 + i));
+        trainedNames.push(generateNameWithWeights(W, 1000 + i));
+      }
+
+      randomDiv.innerHTML = randomNames.map(function(n) {
+        return '<div style="padding:2px 0;">' + (n || '<em style="color:var(--text-secondary);">(빈 이름)</em>') + '</div>';
+      }).join('');
+
+      trainedDiv.innerHTML = trainedNames.map(function(n) {
+        return '<div style="padding:2px 0;">' + (n || '<em style="color:var(--text-secondary);">(빈 이름)</em>') + '</div>';
+      }).join('');
+    }
+
+    document.getElementById('compare-gen-btn').addEventListener('click', runComparison);
+
+    // ------------------------------------------------------------------
+    // Feature: Perplexity Calculator (Tab 7)
+    // ------------------------------------------------------------------
+    function computePerplexity(name) {
+      var nameLower = name.toLowerCase().replace(/[^a-z]/g, '');
+      if (nameLower.length === 0) return null;
+
+      // Tokenize: BOS, ...chars
+      var tokens = [BOS];
+      for (var i = 0; i < nameLower.length; i++) {
+        if (charToId.hasOwnProperty(nameLower[i])) {
+          tokens.push(charToId[nameLower[i]]);
+        }
+      }
+      // Add final BOS as end token
+      tokens.push(BOS);
+
+      var details = [];
+      var totalLoss = 0;
+      var keys = [];
+      var vals = [];
+      for (var li = 0; li < CFG.n_layer; li++) { keys.push([]); vals.push([]); }
+
+      for (var p = 0; p < tokens.length - 1; p++) {
+        var result = gptForward(tokens[p], p, keys, vals, W);
+        var probs = softmax(result.logits);
+        var targetId = tokens[p + 1];
+        var prob = probs[targetId];
+        var negLogP = -Math.log(prob + 1e-10);
+        totalLoss += negLogP;
+
+        var inputLabel = tokens[p] === BOS ? 'BOS' : V[tokens[p]];
+        var targetLabel = targetId === BOS ? 'BOS' : V[targetId];
+
+        details.push({
+          input: inputLabel,
+          target: targetLabel,
+          prob: prob,
+          negLogP: negLogP
+        });
+      }
+
+      var avgLoss = totalLoss / details.length;
+      var perplexity = Math.exp(avgLoss);
+
+      return {
+        name: nameLower,
+        details: details,
+        avgLoss: avgLoss,
+        perplexity: perplexity
+      };
+    }
+
+    function runPerplexity() {
+      var input = document.getElementById('ppl-input').value.trim();
+      if (!input) return;
+
+      var result = computePerplexity(input);
+      if (!result) return;
+
+      var resultDiv = document.getElementById('ppl-result');
+      resultDiv.innerHTML = '<div style="font-size:1.1rem;font-weight:600;color:var(--accent-blue);">' +
+        '"' + result.name + '"의 Perplexity: ' + result.perplexity.toFixed(2) +
+        ' <span style="font-size:0.85rem;font-weight:400;color:var(--text-secondary);">(평균 loss: ' + result.avgLoss.toFixed(3) + ')</span></div>';
+
+      var detailDiv = document.getElementById('ppl-detail');
+      var html = '<table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:0.78rem;">';
+      html += '<tr style="color:var(--text-secondary);border-bottom:1px solid var(--border);">' +
+        '<th style="text-align:left;padding:4px 8px;">입력</th>' +
+        '<th style="text-align:left;padding:4px 8px;">예측 대상</th>' +
+        '<th style="text-align:right;padding:4px 8px;">확률</th>' +
+        '<th style="text-align:right;padding:4px 8px;">-log(p)</th>' +
+        '<th style="padding:4px 8px;width:40%;">확률 바</th></tr>';
+
+      for (var i = 0; i < result.details.length; i++) {
+        var d = result.details[i];
+        // Color coding: high prob = green, low prob = red
+        var t = Math.min(1, d.prob * 5); // scale so 0.2+ is fully green
+        var r = Math.round(248 * (1 - t) + 63 * t);
+        var g = Math.round(81 * (1 - t) + 185 * t);
+        var b = Math.round(73 * (1 - t) + 80 * t);
+        var barColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+        var barWidth = Math.max(1, Math.min(100, d.prob * 100 * 3));
+
+        html += '<tr style="border-bottom:1px solid rgba(48,54,61,0.3);">' +
+          '<td style="padding:4px 8px;">' + d.input + '</td>' +
+          '<td style="padding:4px 8px;font-weight:600;">' + d.target + '</td>' +
+          '<td style="text-align:right;padding:4px 8px;">' + (d.prob * 100).toFixed(2) + '%</td>' +
+          '<td style="text-align:right;padding:4px 8px;">' + d.negLogP.toFixed(3) + '</td>' +
+          '<td style="padding:4px 8px;"><div style="height:12px;border-radius:3px;background:' + barColor + ';width:' + barWidth + '%;"></div></td></tr>';
+      }
+      html += '</table>';
+      detailDiv.innerHTML = html;
+    }
+
+    var pplInitialized = false;
+    function initPerplexity() {
+      if (pplInitialized) return;
+      pplInitialized = true;
+      document.getElementById('ppl-btn').addEventListener('click', runPerplexity);
+      document.getElementById('ppl-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') runPerplexity();
+      });
+    }
+
+    // ------------------------------------------------------------------
     // Update init functions to include new features
     // ------------------------------------------------------------------
     var origInitInternals = initInternals;
     var snapshotAnimInitialized = false;
+    var weightEditInitialized = false;
     initInternals = function() {
       origInitInternals();
       if (!snapshotAnimInitialized) {
@@ -4281,6 +4776,12 @@ python microgpt.py<br><br>
         drawSnapshotAttention(parseInt(document.getElementById('snapshot-anim-slider').value));
       }
       drawEmbedding2D();
+      if (!weightEditInitialized) {
+        initWeightEdit();
+        weightEditInitialized = true;
+      } else {
+        weUpdate();
+      }
     };
 
     var origInitLab = initLab;
@@ -4291,6 +4792,7 @@ python microgpt.py<br><br>
         initBeamSearch();
         beamSearchInitialized = true;
       }
+      initPerplexity();
     };
 
     // Interactive backprop: initialized on first backprop tab visit via switchTab
